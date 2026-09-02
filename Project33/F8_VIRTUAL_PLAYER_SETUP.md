@@ -1,123 +1,70 @@
-# F8 Virtual Player Menu - Easy Setup
+# F8 RHD Virtual Player Menu - Easy Setup
 
-## What F8 provides
+F8 opens **Virtual Inventory, Virtual Garage, Jobs and Property**.
 
-F8 opens four player systems: **Virtual Inventory, Virtual Garage, Jobs and Property**.
+## Input
+Create/bind this action in Workbench:
 
-The limits are already configured: 120 base-game inventory slots, 435 virtual item types, 10 properties, 100 storage per storage object and 15,000 storage per property. A 500 ft property radius costs $15,000,000.
+`RHD_Virtual_Player_Menu`
 
-## 1. Open the project
+Bind it to **F8**.
 
-1. Open `Project33` in Arma Reforger Workbench.
-2. Let Workbench finish importing/indexing the scripts.
-3. Do not rename the `GRS_` script files.
+## Menu
+Register `RHD_Virtual_Player_Menu` in the mod's Chimera menu configuration and connect it to `RHD_VirtualPlayerMenuUI`.
 
-## 2. Add the F8 input
+Required widgets:
+- `RHD_Virtual_Close` - ButtonWidget
+- `RHD_Virtual_Money` - TextWidget
+- `RHD_Virtual_Content` - TextWidget
 
-In **Game > Input > Actions**, create an action named exactly:
+Recommended tabs: Inventory, Garage, Jobs, Property.
 
-`GRS_Virtual_Player_Menu`
+## Virtual Inventory
+- Up to 120 base-game inventory slots.
+- Up to 435 virtual item types.
+- Base-game items are removed from the real inventory before virtual storage succeeds.
+- Virtual items are menu-only and are not spawned as physical items.
 
-Bind it to **F8** for keyboard/PC. If the mission already owns F8, choose another key and change the binding only; do not rename the action.
+## Virtual Garage
+The mission supplies the vehicle catalogue. Every vehicle made available by the mission can be exposed in the garage; there is no arbitrary 50-vehicle cap.
 
-## 3. Create the menu layout
+The mission adapter must verify vehicle IDs and perform safe server-side spawning.
 
-Create one UI layout for `GRS_VirtualPlayerMenuUI` and register it with the existing Chimera menu configuration.
+## Jobs
+Jobs use **existing civilian AI already spawned in the mission**. F8 must never spawn replacement civilians just to satisfy a job.
 
-The root widget must contain these named widgets:
+The intended chain is: civilian -> civilian contact -> virtual delivery item -> destination civilian -> server-verified reward.
 
-- `GRS_Virtual_Close` - ButtonWidget
-- `GRS_Virtual_Money` - TextWidget
-- `GRS_Virtual_Content` - TextWidget
-
-For a beginner-friendly layout, make four tab buttons named Inventory, Garage, Jobs and Property, then place a scrollable content panel under them. The script layer already owns the feature rules; the layout only needs to present buttons and lists.
-
-## 4. Make the four tabs useful
-
-### Inventory
-- **Store** removes a selected base-game item from the player's real inventory and places it in the 120-slot virtual inventory.
-- **Take** removes it from virtual storage and gives it back to the player.
-- Virtual items are separate from base-game items and can be purchased from the menu.
-
-### Garage
-- The mission supplies the vehicle catalogue. Every vehicle that the mission makes available can be exposed here.
-- Purchase stores ownership.
-- Spawn retrieves the selected stored vehicle at a safe server-selected location.
-- There is no arbitrary 50-vehicle cap.
-
-### Jobs
-Jobs use this sequence:
-
-1. Random civilian gives the player a task.
-2. Player talks to the required civilian.
-3. That civilian can send the player to another civilian.
-4. Player receives a virtual delivery item.
-5. Player delivers the item to the destination civilian.
-6. Server verifies the complete chain and pays the reward.
-
-Never mark a job complete from a client-only button press.
-
-### Property
-- Player can own up to 10 buildings.
-- Build radius is selectable up to 500 ft / 152.4 m.
-- Price scales with radius and is capped at $15,000,000.
+## Property
+- Maximum 10 properties per player.
+- Build radius up to 500 ft / 152.4 m.
+- 500 ft radius costs $15,000,000.
 - Each Storage object adds 100 virtual storage.
 - Property storage caps at 15,000.
-- Property objects are divided into Storage, Arsenal, Decoration and Fortification.
-- A player's connected building cluster can use the 500 ft build range, but another player's building must still block/limit placement according to the mission's overlap rule.
+- Construction categories: Storage, Arsenal, Decoration and Fortification.
+- Placement must be validated against the map and other player properties by the mission integration.
 
-## 5. Mission-specific connection
+## Mission adapter
+Mission-specific connections belong in:
 
-The file `Scripts/Game/GRS/GRS_VirtualPlayerMissionAdapter.c` is the single place intended for mission-specific connections. The core mod deliberately does **not** invent prefab GUIDs or undocumented inventory/AI APIs.
+`Scripts/Game/GRS/GRS_VirtualPlayerMissionAdapter.c`
 
-Connect these operations to the mission's existing systems:
+The class is now named `RHD_VirtualPlayerMissionAdapter`. Connect real mission systems for:
+- base-game inventory remove/give
+- authoritative economy charge/credit
+- mission vehicle validation/spawn
+- existing civilian AI detection, selection and distance checks
+- buildable/overlap validation
+- property object spawning
 
-- remove/give a base-game inventory item
-- charge/credit the player's authoritative money
-- verify a vehicle is available in the current mission
-- spawn a purchased vehicle
-- identify civilian AI and test interaction distance
-- choose a random civilian
-- validate map/building placement
-- spawn Storage, Arsenal, Decoration and Fortification prefabs
+Safe defaults reject unconnected operations. Do not add invented prefab GUIDs or undocumented engine APIs.
 
-The safe defaults reject these operations until they are connected. This prevents a client from creating money, items, vehicles or property by itself.
+## Easy configuration
+Normal limits/settings remain in:
+- `Scripts/Game/GRS/GRS_VirtualPlayerConfig.c`
+- `Scripts/Game/GRS/GRS_VirtualPlayerEasyConfig.c`
 
-## 6. Do not put GUIDs in the scripts
+The runtime class prefix is **RHD**. Existing filenames/directories are retained for now so the change does not invalidate Workbench resource paths; rename the physical files/resources in Workbench together with any resource references when doing the final asset cleanup.
 
-Use Workbench to select the real prefabs/resources used by your mission. Keep those resource references in the mission's normal configuration/resources. Do not copy made-up GUIDs into the F8 scripts.
-
-## 7. Easy settings
-
-For normal changes, edit only:
-
-`Scripts/Game/GRS/GRS_VirtualPlayerConfig.c`
-
-and
-
-`Scripts/Game/GRS/GRS_VirtualPlayerEasyConfig.c`
-
-Both files are intentionally commented for non-programmers.
-
-## 8. Multiplayer/security
-
-All purchases, inventory transfers, job completion, vehicle spawning, property purchases and construction must be server-authoritative. The client menu is a request interface, not the source of truth.
-
-## 9. Test checklist
-
-Test in this order:
-
-1. Press F8 and verify the menu opens/closes.
-2. Verify all four tabs appear.
-3. Test storing and retrieving one real inventory item.
-4. Test buying one virtual item.
-5. Test buying and spawning one mission vehicle.
-6. Start a job and verify each civilian step is required.
-7. Buy a small property, then test Storage/Arsenal/Decoration/Fortification placement.
-8. Add Storage objects until 15,000 capacity and verify the next one is rejected.
-9. Buy 10 properties and verify property 11 is rejected.
-10. Test from a second client and confirm clients cannot change another player's money, inventory, garage or property.
-11. Reconnect and verify persistence if your mission persistence system is enabled.
-
-### Important
-The F8 framework, limits, validation model and UI contract are in the mod. Actual interaction with a specific mission's inventory components, civilian AI, vehicle prefab catalogue and construction prefabs is necessarily mission-specific; Workbench must supply those real resources rather than guessed engine identifiers.
+## Multiplayer
+Purchases, inventory transfers, jobs, garage spawning, property ownership and construction must be server-authoritative. The UI is only a request surface.
