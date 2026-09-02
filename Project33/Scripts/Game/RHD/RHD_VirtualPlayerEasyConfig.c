@@ -9,6 +9,7 @@ class RHD_VirtualPlayerEasyConfig
 	static const int DEFAULT_FORTIFICATION_PRICE = 1000;
 	static const int PROPERTY_PRICE_AT_500FT = 15000000;
 	static const float JOB_MAX_INTERACTION_DISTANCE_M = 4.0;
+	static const int MAX_SHOP_CART_LINE_QUANTITY = 1000;
 	static const bool GARAGE_ALLOW_MULTIPLE_OF_SAME_VEHICLE = true;
 	static const bool ENABLE_PROPERTY_BUILDING = true;
 	static const bool ENABLE_SHARED_SHOP = true;
