@@ -33,6 +33,14 @@ class GRS_ATAKPlayerState
 		return true;
 	}
 
+	void Refund(int amount)
+	{
+		if (amount <= 0)
+			return;
+		m_iMoney += amount;
+		m_iSessionSpent = Math.Max(0, m_iSessionSpent - amount);
+	}
+
 	void AddMoney(int amount)
 	{
 		if (amount > 0)
