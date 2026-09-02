@@ -53,10 +53,7 @@ class GRS_VirtualPlayerState
 	ref array<GRS_PropertyEntry> m_aProperties = {};
 	ref array<GRS_JobEntry> m_aJobs = {};
 
-	int GetBaseInventorySlotsUsed()
-	{
-		return m_aBaseInventory.Count();
-	}
+	int GetBaseInventorySlotsUsed() { return m_aBaseInventory.Count(); }
 
 	bool AddBaseItem(string itemId, string displayName, int quantity)
 	{
@@ -102,6 +99,30 @@ class GRS_VirtualPlayerState
 		entry.m_bVirtual = true;
 		m_aVirtualInventory.Insert(entry);
 		return true;
+	}
+
+	bool RemoveVirtualItem(string itemId, int quantity)
+	{
+		if (itemId.IsEmpty() || quantity <= 0)
+			return false;
+		foreach (GRS_VirtualInventoryEntry entry : m_aVirtualInventory)
+		{
+			if (!entry || entry.m_sItemId != itemId || !entry.m_bVirtual || entry.m_iQuantity < quantity)
+				continue;
+			entry.m_iQuantity -= quantity;
+			if (entry.m_iQuantity <= 0)
+				m_aVirtualInventory.RemoveItem(entry);
+			return true;
+		}
+		return false;
+	}
+
+	int GetVirtualItemQuantity(string itemId)
+	{
+		foreach (GRS_VirtualInventoryEntry entry : m_aVirtualInventory)
+			if (entry && entry.m_sItemId == itemId && entry.m_bVirtual)
+				return entry.m_iQuantity;
+		return 0;
 	}
 
 	bool AddGarageVehicle(string vehicleId, string displayName)
