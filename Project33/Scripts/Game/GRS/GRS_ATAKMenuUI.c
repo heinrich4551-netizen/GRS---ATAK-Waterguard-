@@ -10,6 +10,15 @@ class GRS_ATAKMenuUI : ChimeraMenuBase
 	{
 		super.OnMenuOpen();
 		m_MapState = new GRS_ATAKMapState();
+
+		Widget root = GetRootWidget();
+		if (!root)
+			return;
+
+		SCR_ButtonTextComponent closeButton = SCR_ButtonTextComponent.GetButtonText(BUTTON_CLOSE, root);
+		if (closeButton)
+			closeButton.m_OnClicked.Insert(OnCloseClicked);
+
 		RefreshStats();
 
 		InputManager inputManager = GetGame().GetInputManager();
@@ -23,6 +32,11 @@ class GRS_ATAKMenuUI : ChimeraMenuBase
 		if (inputManager)
 			inputManager.RemoveActionListener("MenuBack", EActionTrigger.DOWN, CloseMenu);
 		super.OnMenuClose();
+	}
+
+	protected void OnCloseClicked()
+	{
+		CloseMenu();
 	}
 
 	protected void CloseMenu(float value = 0, EActionTrigger reason = EActionTrigger.DOWN)
