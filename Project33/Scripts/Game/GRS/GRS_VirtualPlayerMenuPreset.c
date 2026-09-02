@@ -2,5 +2,5 @@
 // The matching menu preset/layout entry must be created in Workbench.
 modded enum ChimeraMenuPreset : ScriptMenuPresetEnum
 {
-	GRS_Virtual_Player_Menu
+	RHD_Virtual_Player_Menu
 };
