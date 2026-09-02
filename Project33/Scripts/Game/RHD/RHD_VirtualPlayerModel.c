@@ -47,6 +47,9 @@ class RHD_VirtualPlayerState
 	ref array<RHD_GarageVehicleEntry> m_aGarage = {};
 	ref array<RHD_PropertyEntry> m_aProperties = {};
 	ref array<RHD_JobEntry> m_aJobs = {};
+	ref array<RHD_ContractEntry> m_aContracts = {};
+	ref RHD_PlayerProgression m_Progression = new RHD_PlayerProgression();
+
 	int GetBaseInventorySlotsUsed() { return m_aBaseInventory.Count(); }
 	int GetVirtualItemTypeCount() { return m_aVirtualInventory.Count(); }
 	bool HasVirtualItemType(string itemId) { return GetVirtualItemQuantity(itemId) > 0; }
