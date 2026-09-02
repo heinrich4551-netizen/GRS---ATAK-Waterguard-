@@ -42,22 +42,30 @@ class GRS_VirtualPlayerController
 	void SetTab(GRS_VirtualPlayerTab tab) { m_eTab = tab; }
 	GRS_VirtualPlayerMissionAdapter GetMissionAdapter() { return m_Mission; }
 
-	// The mission adapter is the only place that needs mission-specific logic.
+	// -------------------------------------------------------------------------
+	// INVENTORY
+	// -------------------------------------------------------------------------
+	// The mission adapter removes the real item first. Only after that succeeds
+	// is the item recorded in the virtual inventory.
 	bool StoreBaseItem(string itemId, string displayName, int quantity)
 	{
 		if (itemId.IsEmpty() || quantity <= 0)
 			return false;
 		if (!m_Mission.RemoveBaseItemFromPlayer(itemId, quantity))
 			return false;
-		return m_State.AddBaseItem(itemId, displayName, quantity);
+		if (m_State.AddBaseItem(itemId, displayName, quantity))
+			return true;
+		// If the virtual inventory is full, the mission should restore the item.
+		m_Mission.GiveBaseItemToPlayer(itemId, quantity);
+		return false;
 	}
 
 	bool PurchaseVirtualItem(string itemId, string displayName, int price)
 	{
 		if (itemId.IsEmpty() || price < 0)
 			return false;
-		// The authoritative implementation must use the configured catalogue
-		// price rather than trusting a price supplied by the UI.
+		// Server/mission code must replace the supplied price with the configured
+		// catalogue price before charging the player.
 		if (!m_Mission.ChargePlayer("LOCAL_PLAYER", price))
 			return false;
 		if (m_State.AddVirtualItem(itemId, displayName, 1))
@@ -66,6 +74,9 @@ class GRS_VirtualPlayerController
 		return false;
 	}
 
+	// -------------------------------------------------------------------------
+	// GARAGE
+	// -------------------------------------------------------------------------
 	bool PurchaseVehicle(string vehicleId, string displayName, int price)
 	{
 		if (vehicleId.IsEmpty() || price < 0)
@@ -84,11 +95,14 @@ class GRS_VirtualPlayerController
 	{
 		if (vehicleId.IsEmpty() || !m_Mission.IsVehicleAvailableInMission(vehicleId))
 			return false;
-		// The mission decides the safe spawn position.
 		return m_Mission.SpawnGarageVehicle(vehicleId, vector.Zero);
 	}
 
-	// Generate a job from existing civilian AI. No civilian prefab is required.
+	// -------------------------------------------------------------------------
+	// JOBS
+	// -------------------------------------------------------------------------
+	// This deliberately asks the mission for EXISTING civilian AI. No civilian
+	// prefab is configured or spawned by F8 just to make a job work.
 	bool GenerateRandomJob(string jobId, string virtualItemId, int reward)
 	{
 		if (jobId.IsEmpty() || virtualItemId.IsEmpty() || reward < 0)
@@ -127,6 +141,9 @@ class GRS_VirtualPlayerController
 		return jobId.IsEmpty() || civilianId.IsEmpty() || virtualItemId.IsEmpty() ? false : ServerCompleteJobDelivery(jobId, civilianId, virtualItemId);
 	}
 
+	// -------------------------------------------------------------------------
+	// PROPERTY
+	// -------------------------------------------------------------------------
 	bool PurchaseProperty(string propertyId, string displayName, vector position, float buildRadiusMeters, int price)
 	{
 		if (m_State.m_aProperties.Count() >= GRS_VirtualPlayerConfig.MAX_PROPERTIES)
@@ -136,9 +153,7 @@ class GRS_VirtualPlayerController
 		int expectedPrice = CalculatePropertyPrice(buildRadiusMeters);
 		if (price != expectedPrice)
 			return false;
-		if (!m_Mission.IsMapPositionBuildable(position, buildRadiusMeters))
-			return false;
-		if (m_Mission.DoesPositionOverlapAnotherPlayerProperty(position, buildRadiusMeters))
+		if (!IsPropertyPlacementAllowed(position, buildRadiusMeters))
 			return false;
 		return ServerPurchaseProperty(propertyId, displayName, position, buildRadiusMeters, expectedPrice);
 	}
@@ -157,20 +172,16 @@ class GRS_VirtualPlayerController
 	{
 		if (propertyIndex < 0 || propertyIndex >= m_State.m_aProperties.Count() || storageId.IsEmpty())
 			return false;
-		if (!m_State.AddStorageObject(propertyIndex, storageId))
-			return false;
-		return m_Mission.SpawnPropertyObject(GRS_VirtualPlayerConfig.PROPERTY_OBJECT_STORAGE, storageId, m_State.m_aProperties[propertyIndex].m_vPosition);
+		return ServerBuildPropertyObject(propertyIndex, GRS_VirtualPlayerConfig.PROPERTY_OBJECT_STORAGE, storageId);
 	}
 
 	bool BuildPropertyObject(int propertyIndex, string objectType, string objectId)
 	{
 		if (propertyIndex < 0 || propertyIndex >= m_State.m_aProperties.Count() || objectType.IsEmpty() || objectId.IsEmpty())
 			return false;
-		if (objectType == GRS_VirtualPlayerConfig.PROPERTY_OBJECT_STORAGE)
-			return AddPropertyStorage(propertyIndex, objectId);
 		if (!IsAllowedPropertyObjectType(objectType))
 			return false;
-		return m_Mission.SpawnPropertyObject(objectType, objectId, m_State.m_aProperties[propertyIndex].m_vPosition);
+		return ServerBuildPropertyObject(propertyIndex, objectType, objectId);
 	}
 
 	bool IsAllowedPropertyObjectType(string objectType)
@@ -189,15 +200,11 @@ class GRS_VirtualPlayerController
 			&& !m_Mission.DoesPositionOverlapAnotherPlayerProperty(position, radiusMeters);
 	}
 
-	protected bool ServerStoreBaseItem(string itemId, string displayName, int quantity) { return StoreBaseItemInternal(itemId, displayName, quantity); }
-	protected bool StoreBaseItemInternal(string itemId, string displayName, int quantity) { return false; }
-	protected bool ServerPurchaseVirtualItem(string itemId, string displayName, int price) { return false; }
-	protected bool ServerPurchaseVehicle(string vehicleId, string displayName, int price) { return false; }
-	protected bool ServerSpawnStoredVehicle(string vehicleId) { return m_Mission.SpawnGarageVehicle(vehicleId, vector.Zero); }
 	protected bool ServerStartJob(string jobId) { return false; }
 	protected bool ServerAdvanceJobDialogue(string jobId, string civilianId) { return false; }
 	protected bool ServerCompleteJobDelivery(string jobId, string civilianId, string virtualItemId) { return false; }
 	protected bool ServerPurchaseProperty(string propertyId, string displayName, vector position, float buildRadiusMeters, int price) { return false; }
+	protected bool ServerBuildPropertyObject(int propertyIndex, string objectType, string objectId) { return false; }
 };
 
 enum GRS_VirtualPlayerTab
