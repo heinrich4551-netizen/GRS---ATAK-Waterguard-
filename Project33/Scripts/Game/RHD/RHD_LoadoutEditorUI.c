@@ -1,9 +1,8 @@
 // ============================================================================
 // RHD / PROJECT33 - DEEP ARSENAL-STYLE LOADOUT EDITOR UI
 // ============================================================================
-// Hosted inside the existing F8 virtual-player menu. The layout is intentionally
-// made from optional widgets so one Workbench menu can support shallow or deep
-// presentations without changing the code.
+// Hosted inside the existing F8 virtual-player menu. Optional widgets permit a
+// compact editor or a full arsenal-style presentation using the same backend.
 //
 // Text widgets:
 // RHD_Loadout_Status, RHD_Loadout_Profile, RHD_Loadout_Content,
@@ -59,10 +58,10 @@ class RHD_LoadoutEditorUI
 		m_wQuantity = EditBoxWidget.Cast(m_Root.FindAnyWidget("RHD_Loadout_Quantity"));
 		m_wContainer = EditBoxWidget.Cast(m_Root.FindAnyWidget("RHD_Loadout_Container"));
 		m_wZeroing = EditBoxWidget.Cast(m_Root.FindAnyWidget("RHD_Loadout_Zeroing"));
-		BindApply();
-		BindSave();
-		BindRefresh();
-		BindClear();
+		BindButton("RHD_Loadout_Apply", OnApply);
+		BindButton("RHD_Loadout_Save", OnSave);
+		BindButton("RHD_Loadout_Refresh", OnRefresh);
+		BindButton("RHD_Loadout_Clear", OnClear);
 		BindButton("RHD_Loadout_SetItem", OnSetItem);
 		BindButton("RHD_Loadout_AddItem", OnAddItem);
 		BindButton("RHD_Loadout_RemoveItem", OnRemoveItem);
@@ -84,10 +83,6 @@ class RHD_LoadoutEditorUI
 		component.m_OnClicked.Insert(callback);
 		m_aButtons.Insert(button);
 	}
-	protected void BindApply() { BindButton("RHD_Loadout_Apply", OnApply); }
-	protected void BindSave() { BindButton("RHD_Loadout_Save", OnSave); }
-	protected void BindRefresh() { BindButton("RHD_Loadout_Refresh", OnRefresh); }
-	protected void BindClear() { BindButton("RHD_Loadout_Clear", OnClear); }
 
 	void Shutdown()
 	{
@@ -125,74 +120,47 @@ class RHD_LoadoutEditorUI
 	}
 	protected string GetItem() { return m_wItem ? m_wItem.GetText() : ""; }
 	protected string GetAttachment() { return m_wAttachment ? m_wAttachment.GetText() : ""; }
-	protected string GetContainer() { return m_wContainer ? m_wContainer.GetText() : "LOOSE"; }
+	protected string GetContainer() { return m_wContainer && !m_wContainer.GetText().IsEmpty() ? m_wContainer.GetText() : "LOOSE"; }
 	protected int GetQuantity() { return m_wQuantity ? m_wQuantity.GetText().ToInt() : 1; }
 	protected void SetStatus(string text) { if (m_wStatus) m_wStatus.SetText(text); }
 
-	protected void OnApply()
-	{
-		if (!m_Controller.Apply()) SetStatus("LOADOUT NOT APPLIED - validate or wire mission adapter"); else SetStatus("LOADOUT APPLIED");
-		Refresh();
-	}
-	protected void OnSave()
-	{
-		if (!m_Controller.Save()) SetStatus("PROFILE NOT SAVED - validate or wire persistence adapter"); else SetStatus("PROFILE SAVED");
-		Refresh();
-	}
-	protected void OnRefresh()
-	{
-		if (!m_Controller.RefreshCurrentLoadout()) SetStatus("EDITOR PREVIEW - current loadout import not wired"); else SetStatus("CURRENT LOADOUT IMPORTED");
-		Refresh();
-	}
-	protected void OnClear()
-	{
-		if (m_Controller.GetModel().ClearItem(GetSlot())) SetStatus("CLEARED " + GetSlot()); else SetStatus("INVALID SLOT");
-		Refresh();
-	}
-	protected void OnSetItem()
-	{
-		if (m_Controller.SetCategoryItem(GetCategory(), GetSlot(), GetItem())) SetStatus("ITEM SET"); else SetStatus("ITEM REJECTED - not in mission catalog / wrong category");
-		Refresh();
-	}
+	protected void OnApply() { SetStatus(m_Controller.Apply() ? "LOADOUT APPLIED" : "LOADOUT NOT APPLIED - INVALID OR ADAPTER REQUIRED"); Refresh(); }
+	protected void OnSave() { SetStatus(m_Controller.Save() ? "PROFILE SAVED" : "PROFILE NOT SAVED - INVALID OR PERSISTENCE ADAPTER REQUIRED"); Refresh(); }
+	protected void OnRefresh() { SetStatus(m_Controller.RefreshCurrentLoadout() ? "CURRENT LOADOUT IMPORTED" : "EDITOR PREVIEW - IMPORT ADAPTER NOT WIRED"); Refresh(); }
+	protected void OnClear() { SetStatus(m_Controller.GetModel().ClearItem(GetSlot()) ? "CLEARED " + GetSlot() : "INVALID SLOT"); Refresh(); }
+	protected void OnSetItem() { SetStatus(m_Controller.SetCategoryItem(GetCategory(), GetSlot(), GetItem()) ? "ITEM SET" : "ITEM REJECTED - CHECK CATEGORY / CATALOG"); Refresh(); }
 	protected void OnAddItem()
 	{
 		int quantity = GetQuantity();
 		if (quantity <= 0) quantity = 1;
-		if (m_Controller.AddLooseItem(GetItem(), GetItem(), GetCategory(), quantity)) SetStatus("ITEM ADDED: " + quantity.ToString()); else SetStatus("ITEM NOT AVAILABLE");
+		if (GetContainer() == "LOOSE")
+			SetStatus(m_Controller.AddLooseItem(GetItem(), GetItem(), GetCategory(), quantity) ? "CARRIED ITEM ADDED" : "ITEM NOT AVAILABLE");
+		else
+			SetStatus(m_Controller.AddContainerItem(GetContainer(), GetItem(), GetItem(), GetCategory(), quantity, quantity) ? "CONTAINER ITEM ADDED" : "CONTAINER ITEM NOT AVAILABLE");
 		Refresh();
 	}
 	protected void OnRemoveItem()
 	{
-		if (m_Controller.GetModel().AddLooseItem("", "", "", 0)) SetStatus("NO ACTION");
-		SetStatus("REMOVE USES THE MISSION INVENTORY HANDLER AFTER CATALOG WIRING");
-	}
-	protected void OnAddAttachment()
-	{
-		if (m_Controller.AddAttachment(GetSlot(), GetAttachment())) SetStatus("ATTACHMENT ADDED"); else SetStatus("ATTACHMENT NOT COMPATIBLE");
+		int quantity = GetQuantity();
+		if (quantity <= 0) quantity = 1;
+		if (GetContainer() == "LOOSE")
+			SetStatus(m_Controller.RemoveLooseItem(GetItem(), GetCategory(), quantity) ? "CARRIED ITEM REMOVED" : "ITEM NOT FOUND");
+		else
+			SetStatus(m_Controller.RemoveContainerItem(GetContainer(), GetItem(), quantity) ? "CONTAINER ITEM REMOVED" : "ITEM NOT FOUND");
 		Refresh();
 	}
-	protected void OnRemoveAttachment()
-	{
-		if (m_Controller.RemoveAttachment(GetSlot(), GetAttachment())) SetStatus("ATTACHMENT REMOVED"); else SetStatus("ATTACHMENT NOT FOUND");
-		Refresh();
-	}
+	protected void OnAddAttachment() { SetStatus(m_Controller.AddAttachment(GetSlot(), GetAttachment()) ? "ATTACHMENT ADDED" : "ATTACHMENT NOT COMPATIBLE"); Refresh(); }
+	protected void OnRemoveAttachment() { SetStatus(m_Controller.RemoveAttachment(GetSlot(), GetAttachment()) ? "ATTACHMENT REMOVED" : "ATTACHMENT NOT FOUND"); Refresh(); }
 	protected void OnSetZeroing()
 	{
 		if (!m_wZeroing) return;
 		int meters = m_wZeroing.GetText().ToInt();
-		if (m_Controller.SetZeroing(GetSlot(), meters)) SetStatus("ZEROING SET: " + meters.ToString() + "m"); else SetStatus("ZEROING REJECTED");
+		SetStatus(m_Controller.SetZeroing(GetSlot(), meters) ? "ZEROING SET: " + meters.ToString() + "m" : "ZEROING REJECTED");
 		Refresh();
 	}
-	protected void OnHolster()
-	{
-		if (m_Controller.SetHolsterState("HOLSTERED")) SetStatus("HOLSTER STATE APPLIED"); else SetStatus("HOLSTER ADAPTER REQUIRED");
-		Refresh();
-	}
+	protected void OnHolster() { SetStatus(m_Controller.SetHolsterState("HOLSTERED") ? "HOLSTER STATE APPLIED" : "HOLSTER ADAPTER REQUIRED"); Refresh(); }
 	protected void OnValidate() { SetStatus(m_Controller.ValidateActiveProfile() ? "LOADOUT VALID" : "LOADOUT INVALID"); Refresh(); }
-	protected void OnOpenWCS()
-	{
-		if (m_Controller.GetMissionAdapter().OpenWCSLoadoutEditor()) SetStatus("WCS LOADOUT EDITOR OPENED"); else SetStatus("WCS HANDOFF REQUIRES MISSION WIRING");
-	}
+	protected void OnOpenWCS() { SetStatus(m_Controller.GetMissionAdapter().OpenWCSLoadoutEditor() ? "WCS LOADOUT EDITOR OPENED" : "WCS HANDOFF REQUIRES MISSION WIRING"); }
 
 	void Refresh()
 	{
@@ -203,16 +171,17 @@ class RHD_LoadoutEditorUI
 		if (m_wCategory && m_wCategory.GetText().IsEmpty()) m_wCategory.SetText(m_sSelectedCategory);
 		if (m_wSlot && m_wSlot.GetText().IsEmpty()) m_wSlot.SetText(m_sSelectedSlot);
 		if (m_wQuantity && m_wQuantity.GetText().IsEmpty()) m_wQuantity.SetText("1");
-		if (m_wDependency) m_wDependency.SetText("SUPPORTED: " + m_Controller.GetDependencySummary());
+		if (m_wDependency) m_wDependency.SetText("DEPENDENCIES: " + m_Controller.GetDependencySummary());
 		if (m_wCategories) m_wCategories.SetText(m_Controller.GetCategorySummary());
 		if (m_wSummary) m_wSummary.SetText(m_Controller.GetActiveProfileSummary());
 		if (!m_wContent) return;
 		string text = "ARSENAL LOADOUT\n";
-		text += "WEAPONS -> OPTICS -> ATTACHMENTS -> MAGAZINES -> EQUIPMENT -> CONTAINERS\n\n";
+		text += "WEAPONS | OPTICS | ATTACHMENTS | MAGAZINES | THROWABLES | EXPLOSIVES\n";
+		text += "HEADGEAR | CLOTHING | VESTS | RIGS | BELTS | DROPLEGS | BAGS | COMMS | ACCESSORIES | PATCHES\n\n";
 		foreach (RHD_LoadoutSlot slot : profile.m_aSlots)
 		{
 			if (!slot) continue;
-			text += slot.m_sSlotId + " | " + slot.m_sDisplayName + " | " + (slot.m_sItemId.IsEmpty() ? "EMPTY" : slot.m_sItemId);
+			text += slot.m_sSlotId + " | " + slot.m_sCategory + " | " + slot.m_sDisplayName + " | " + (slot.m_sItemId.IsEmpty() ? "EMPTY" : slot.m_sItemId);
 			if (slot.m_iQuantity > 1) text += " x" + slot.m_iQuantity.ToString();
 			text += "\n";
 			if (slot.m_iZeroing > 0) text += "  ZEROING: " + slot.m_iZeroing.ToString() + "m\n";
@@ -220,15 +189,15 @@ class RHD_LoadoutEditorUI
 		}
 		if (profile.m_aContainers.Count() > 0)
 		{
-			text += "\nCONTAINERS\n";
+			text += "\nCONTAINER CONTENTS\n";
 			foreach (RHD_LoadoutContainerEntry container : profile.m_aContainers)
-				if (container) text += "  " + container.m_sContainerId + " -> " + container.m_sItemId + " x" + container.m_iQuantity.ToString() + "\n";
+				if (container) text += "  " + container.m_sContainerId + " | " + container.m_sCategory + " | " + container.m_sItemId + " x" + container.m_iQuantity.ToString() + " / " + container.m_iCapacity.ToString() + "\n";
 		}
 		if (profile.m_aLooseItems.Count() > 0)
 		{
-			text += "\nLOOSE CARRIED\n";
+			text += "\nCARRIED / LOOSE\n";
 			foreach (RHD_LoadoutContainerEntry loose : profile.m_aLooseItems)
-				if (loose) text += "  " + loose.m_sCategory + " -> " + loose.m_sItemId + " x" + loose.m_iQuantity.ToString() + "\n";
+				if (loose) text += "  " + loose.m_sCategory + " | " + loose.m_sItemId + " x" + loose.m_iQuantity.ToString() + "\n";
 		}
 		m_wContent.SetText(text);
 	}
