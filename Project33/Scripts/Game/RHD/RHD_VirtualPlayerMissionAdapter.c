@@ -1,7 +1,23 @@
 // ============================================================================
-// RHD VIRTUAL PLAYER - MISSION ADAPTER
+// RHD VIRTUAL PLAYER - MISSION / MOD ADAPTER
 // ============================================================================
-// Put mission-specific connections here. Jobs use EXISTING civilian AI only.
+// This is the only file intended to need mission-specific wiring.
+// Keep third-party calls here so Project33 does not hard-code unknown APIs.
+//
+// Intended integrations from the supplied dependency set:
+// - Inventory / item transfer: Overthrow, Edit Entity Inventory, Bacon Loadout
+//   Editor, GRS - Essentials / Bag / Belts / Apparel / Modular Vests.
+// - ATAK / map services: GRS - ATAK Plugin Core, GRS - ATAK DEV, SWAG_ATAK,
+//   PlayerMapMarkersByCryneX, AdvancedCompassByCryneX.
+// - Admin authority: AdminCommandsByCryneX and Game Master Enhanced.
+// - Persistence: Enfusion Persistence Framework and Enfusion Database Framework.
+// - Vehicle / weapon content: RHS packs, WCS content, Air Assets, drones and
+//   the listed attachment/optic mods. Project33 stores IDs, not fake prefabs.
+// - Weight / stamina / holstering / equipment behavior remains owned by the
+//   respective dependency; Project33 does not replace those systems.
+//
+// Jobs deliberately use EXISTING civilian AI. No job-only civilians are spawned.
+// Defaults below are fail-safe until the mission author wires real APIs/resources.
 // ============================================================================
 class RHD_VirtualPlayerMissionAdapter
 {
