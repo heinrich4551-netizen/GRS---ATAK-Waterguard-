@@ -1,5 +1,11 @@
-// Shared virtual shop service.
-// F6, F7 and F8 should call this service instead of maintaining separate prices.
+// RHD SHARED SHOP
+// All F6/F8 shop prices and cart math use this service.
+class RHD_ShopCartEntry
+{
+	string m_sItemId;
+	int m_iQuantity;
+};
+
 class RHD_Shop
 {
 	static bool GetSellPrice(string itemId, out int price)
@@ -30,5 +36,43 @@ class RHD_Shop
 		int price;
 		if (quantity <= 0 || !GetSellPrice(itemId, price)) return 0;
 		return price * quantity;
+	}
+};
+
+class RHD_ShopCart
+{
+	protected ref array<RHD_ShopCartEntry> m_aEntries = {};
+	bool Add(string itemId, int quantity)
+	{
+		int unitPrice;
+		if (itemId.IsEmpty() || quantity <= 0 || !RHD_Shop.GetSellPrice(itemId, unitPrice)) return false;
+		foreach (RHD_ShopCartEntry entry : m_aEntries)
+			if (entry && entry.m_sItemId == itemId) { entry.m_iQuantity += quantity; return true; }
+		RHD_ShopCartEntry entry = new RHD_ShopCartEntry();
+		entry.m_sItemId = itemId; entry.m_iQuantity = quantity;
+		m_aEntries.Insert(entry);
+		return true;
+	}
+	bool Remove(string itemId, int quantity)
+	{
+		if (itemId.IsEmpty() || quantity <= 0) return false;
+		foreach (RHD_ShopCartEntry entry : m_aEntries)
+		{
+			if (!entry || entry.m_sItemId != itemId || entry.m_iQuantity < quantity) continue;
+			entry.m_iQuantity -= quantity;
+			if (entry.m_iQuantity <= 0) m_aEntries.RemoveItem(entry);
+			return true;
+		}
+		return false;
+	}
+	void Clear() { m_aEntries.Clear(); }
+	int GetCount() { return m_aEntries.Count(); }
+	RHD_ShopCartEntry Get(int index) { if (index < 0 || index >= m_aEntries.Count()) return null; return m_aEntries[index]; }
+	int GetTotal()
+	{
+		int total = 0;
+		foreach (RHD_ShopCartEntry entry : m_aEntries)
+			if (entry) total += RHD_Shop.CalculateSale(entry.m_sItemId, entry.m_iQuantity);
+		return total;
 	}
 };
