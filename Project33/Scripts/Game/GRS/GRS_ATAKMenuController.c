@@ -159,22 +159,34 @@ class GRS_ATAKMenuController
 
 	bool RequestMortar(vector target)
 	{
-		if (!CallPreciseMortar(target))
+		if (!m_PlayerState.TrySpend(GRS_ATAKConfig.MORTAR_COST))
 			return false;
-		return m_PlayerState.TrySpend(GRS_ATAKConfig.MORTAR_COST);
+		if (CallPreciseMortar(target))
+			return true;
+
+		m_PlayerState.Refund(GRS_ATAKConfig.MORTAR_COST);
+		return false;
 	}
 
 	bool RequestSupplyDrop(vector target)
 	{
-		if (!SpawnSupplyDropWithRedSmoke(target))
+		if (!m_PlayerState.TrySpend(GRS_ATAKConfig.SUPPLY_DROP_COST))
 			return false;
-		return m_PlayerState.TrySpend(GRS_ATAKConfig.SUPPLY_DROP_COST);
+		if (SpawnSupplyDropWithRedSmoke(target))
+			return true;
+
+		m_PlayerState.Refund(GRS_ATAKConfig.SUPPLY_DROP_COST);
+		return false;
 	}
 
 	void RecordEnemyKill() { m_PlayerState.RecordKill(); }
 	void RecordEnemyRevive() { m_PlayerState.RecordRevive(); }
 	void RecordBaseSupply() { m_PlayerState.RecordSupply(); }
 
+	// The F6 menu is intentionally independent of ATAK equipment. Do not add an
+	// inventory/item lookup here; the menu must open even when the mission contains
+	// no item whose name contains "ATAK".
+	//
 	// Mission integration hooks. Replace only these methods with the mission's real
 	// inventory, AI, mortar and supply-drop implementations.
 	protected bool SpawnPurchasedItemForPlayer(string itemId) { return !itemId.IsEmpty(); }
