@@ -4,8 +4,8 @@ class RHD_ATAKMenuController
 	protected bool m_bOpen;
 	protected ref RHD_ATAKPlayerState m_PlayerState;
 	protected ref RHD_ATAKMapState m_MapState;
+	protected ref RHD_ShopCart m_ShopCart;
 	protected ref array<string> m_aShopItems = {};
-	protected ref map<string, int> m_mShopPrices = new map<string, int>();
 	protected int m_iRecruitedAI;
 
 	void RHD_ATAKMenuController()
@@ -13,6 +13,7 @@ class RHD_ATAKMenuController
 		s_Instance = this;
 		m_PlayerState = new RHD_ATAKPlayerState();
 		m_MapState = new RHD_ATAKMapState();
+		m_ShopCart = new RHD_ShopCart();
 		LoadDefaultShop();
 	}
 	static RHD_ATAKMenuController GetInstance() { return s_Instance; }
@@ -26,40 +27,72 @@ class RHD_ATAKMenuController
 
 	protected void LoadDefaultShop()
 	{
-		int price;
-		string itemId;
+		m_aShopItems.Clear();
 		array<string> itemIds = {"APPLE","CANNABIS_PLANT","COCA_LEAF","CORN_COB","GRAPES","PEACHES","IRON_ORE","COPPER_ORE","GOLD_ORE","DIAMOND","OIL_SAND","IRON","COPPER","GOLD","OIL","CANNABIS_FLOWER","COCAINE","CANNED_CORN"};
-		foreach (itemId : itemIds) if (RHD_Shop.GetSellPrice(itemId, price)) AdminSetShopItem(itemId, price, true);
+		foreach (string itemId : itemIds) m_aShopItems.Insert(itemId);
 	}
 	bool AdminSetShopItem(string itemId, int price, bool callerIsAdmin)
 	{
 		if (!callerIsAdmin || itemId.IsEmpty() || price < 0) return false;
-		if (!m_mShopPrices.Contains(itemId) && m_aShopItems.Count() >= RHD_ATAKConfig.MAX_SHOP_ITEMS) return false;
-		m_mShopPrices.Set(itemId, price);
-		if (!m_aShopItems.Contains(itemId)) m_aShopItems.Insert(itemId);
-		return true;
+		return RHD_ShopAdmin.SetPrice(itemId, price);
 	}
 	int GetShopItemCount() { return m_aShopItems.Count(); }
 	string GetShopItem(int index) { if (index < 0 || index >= m_aShopItems.Count()) return ""; return m_aShopItems[index]; }
-	int GetShopPrice(string itemId) { if (!m_mShopPrices.Contains(itemId)) return -1; return m_mShopPrices.Get(itemId); }
+	int GetShopPrice(string itemId) { int price; if (!RHD_Shop.GetSellPrice(itemId, price)) return -1; return price; }
 
-	bool PurchaseShopItem(string itemId)
+	bool AddShopCartItem(string itemId, int quantity) { return RHD_ShopCartAllowed(itemId) && m_ShopCart.Add(itemId, quantity); }
+	bool RemoveShopCartItem(string itemId, int quantity) { return m_ShopCart.Remove(itemId, quantity); }
+	void ClearShopCart() { m_ShopCart.Clear(); }
+	RHD_ShopCart GetShopCart() { return m_ShopCart; }
+	int GetShopCartTotal() { return m_ShopCart.GetTotal(); }
+	bool CheckoutShopCart()
 	{
-		if (!m_mShopPrices.Contains(itemId)) return false;
-		int price = m_mShopPrices.Get(itemId);
-		if (!m_PlayerState.TrySpend(price)) return false;
-		if (SpawnPurchasedItemForPlayer(itemId)) return true;
-		m_PlayerState.Refund(price);
-		return false;
+		if (!RHD_VirtualPlayerEasyConfig.ALLOW_SHOP_BUYING || m_ShopCart.GetCount() <= 0) return false;
+		int total = m_ShopCart.GetTotal();
+		if (total <= 0 || !m_PlayerState.TrySpend(total)) return false;
+		foreach (RHD_ShopCartEntry entry : m_ShopCart.m_aEntries)
+		{
+			if (!entry) continue;
+			if (!RHD_VirtualProduction.IsKnownVirtualItem(entry.m_sItemId) || !m_VirtualInventoryAdd(entry.m_sItemId, entry.m_iQuantity))
+			{
+				m_PlayerState.Refund(total);
+				return false;
+			}
+		}
+		m_ShopCart.Clear();
+		return true;
 	}
 	bool SellVirtualItem(string itemId, int quantity)
 	{
 		if (!RHD_VirtualPlayerEasyConfig.ALLOW_SHOP_SELLING || quantity <= 0) return false;
-		int unitPrice;
-		if (!RHD_Shop.GetSellPrice(itemId, unitPrice)) return false;
-		m_PlayerState.AddMoney(unitPrice * quantity);
+		if (m_VirtualInventoryQuantity(itemId) < quantity) return false;
+		int total = RHD_Shop.CalculateSale(itemId, quantity);
+		if (total <= 0 || !m_VirtualInventoryRemove(itemId, quantity)) return false;
+		m_PlayerState.AddMoney(total);
 		return true;
 	}
+	bool SellAllVirtualItem(string itemId)
+	{
+		int quantity = m_VirtualInventoryQuantity(itemId);
+		return quantity > 0 && SellVirtualItem(itemId, quantity);
+	}
+	protected bool RHD_ShopCartAllowed(string itemId) { int price; return RHD_Shop.GetSellPrice(itemId, price) && RHD_VirtualProduction.IsKnownVirtualItem(itemId); }
+	protected bool m_VirtualInventoryAdd(string itemId, int quantity)
+	{
+		RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance();
+		return virtualPlayer && virtualPlayer.GetState().AddVirtualItem(itemId, RHD_VirtualProduction.GetDisplayName(itemId), quantity);
+	}
+	protected int m_VirtualInventoryQuantity(string itemId)
+	{
+		RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance();
+		return virtualPlayer ? virtualPlayer.GetState().GetVirtualItemQuantity(itemId) : 0;
+	}
+	protected bool m_VirtualInventoryRemove(string itemId, int quantity)
+	{
+		RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance();
+		return virtualPlayer && virtualPlayer.GetState().RemoveVirtualItem(itemId, quantity);
+	}
+
 	int PlayBlackjack(int stake) { if (!RHD_ATAKFeatures.IsValidBet(stake, RHD_ATAKConfig.BLACKJACK_MIN_STAKE) || !m_PlayerState.TrySpend(stake)) return 0; int roll = Math.RandomInt(0, 100); int payout = RHD_ATAKFeatures.BlackjackPayout(roll < 48, roll < 5, stake); m_PlayerState.AddMoney(payout); return payout; }
 	int PlayRoulette(int stake, int selectedNumber) { if (!RHD_ATAKFeatures.IsValidBet(stake, RHD_ATAKConfig.ROULETTE_MIN_STAKE) || selectedNumber < 0 || selectedNumber > 36 || !m_PlayerState.TrySpend(stake)) return 0; int payout = RHD_ATAKFeatures.RoulettePayout(Math.RandomInt(0, 37), selectedNumber, stake); m_PlayerState.AddMoney(payout); return payout; }
 	int BuyScratchCard() { if (!m_PlayerState.TrySpend(RHD_ATAKConfig.SCRATCH_CARD_COST)) return 0; int payout = RHD_ATAKFeatures.ScratchPayout(Math.RandomInt(0, 100), RHD_ATAKConfig.SCRATCH_CARD_COST); m_PlayerState.AddMoney(payout); return payout; }
@@ -74,4 +107,12 @@ class RHD_ATAKMenuController
 	protected bool SpawnHandlerAI(RHD_ATAKHandlerRequest request) { return !request.m_sPrefab.IsEmpty(); }
 	protected bool CallPreciseMortar(vector target) { return true; }
 	protected bool SpawnSupplyDropWithRedSmoke(vector target) { return true; }
+};
+
+class RHD_ShopAdmin
+{
+	static bool SetPrice(string itemId, int price)
+	{
+		return false;
+	}
 };
