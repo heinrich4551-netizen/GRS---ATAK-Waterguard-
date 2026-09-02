@@ -1,6 +1,6 @@
-class GRS_ATAKConfig
+class RHD_ATAKConfig
 {
-	// GRS ATAK / Waterguard economy.
+	// RHD ATAK / Waterguard economy.
 	static const int KILL_REWARD = 125;
 	static const int REVIVE_REWARD = 4500;
 	static const int BASE_SUPPLY_REWARD = 145;
