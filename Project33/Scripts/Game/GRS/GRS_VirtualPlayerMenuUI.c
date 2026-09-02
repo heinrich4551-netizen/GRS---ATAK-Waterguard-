@@ -12,7 +12,6 @@ class GRS_VirtualPlayerMenuUI : ChimeraMenuBase
 		m_wClose = ButtonWidget.Cast(GetRootWidget().FindWidget("GRS_Virtual_Close"));
 		m_wMoney = TextWidget.Cast(GetRootWidget().FindWidget("GRS_Virtual_Money"));
 		m_wContent = TextWidget.Cast(GetRootWidget().FindWidget("GRS_Virtual_Content"));
-
 		if (m_wClose)
 		{
 			SCR_ButtonTextComponent closeButton = SCR_ButtonTextComponent.Cast(m_wClose.FindHandler(SCR_ButtonTextComponent));
@@ -43,16 +42,15 @@ class GRS_VirtualPlayerMenuUI : ChimeraMenuBase
 		if (!m_Controller)
 			return;
 		if (m_wMoney)
-			m_wMoney.SetText("Virtual Player | Persistent profile");
+			m_wMoney.SetText("Virtual Player");
 		if (m_wContent)
 		{
 			GRS_VirtualPlayerState state = m_Controller.GetState();
-			m_wContent.SetText("INVENTORY | GARAGE | JOBS | PROPERTY\n\n" +
-				"Base inventory slots: " + state.m_aBaseInventory.Count().ToString() + "/" + GRS_VirtualPlayerConfig.MAX_BASE_INVENTORY_ITEMS.ToString() +
-				"\nVirtual item slots: " + state.m_aVirtualInventory.Count().ToString() + "/" + GRS_VirtualPlayerConfig.MAX_VIRTUAL_ITEMS.ToString() +
-				"\nGarage vehicles: " + state.m_aGarage.Count().ToString() +
-				"\nProperties: " + state.m_aProperties.Count().ToString() + "/" + GRS_VirtualPlayerConfig.MAX_PROPERTIES.ToString() +
-				"\n\nUse Workbench widgets to expose the individual inventory, garage, job and property actions.");
+			m_wContent.SetText("VIRTUAL INVENTORY: " + state.m_aBaseInventory.Count().ToString() + "/" + GRS_VirtualPlayerConfig.MAX_BASE_INVENTORY_SLOTS.ToString() +
+				"\nVIRTUAL ITEMS: " + state.m_aVirtualInventory.Count().ToString() + "/" + GRS_VirtualPlayerConfig.MAX_VIRTUAL_ITEM_TYPES.ToString() +
+				"\nGARAGE: " + state.m_aGarage.Count().ToString() +
+				"\nPROPERTY: " + state.m_aProperties.Count().ToString() + "/" + GRS_VirtualPlayerConfig.MAX_PROPERTIES.ToString() +
+				"\n\nUse the Workbench tab buttons to expose actions.");
 		}
 	}
 };
