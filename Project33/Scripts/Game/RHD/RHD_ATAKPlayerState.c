@@ -7,7 +7,12 @@ class RHD_ATAKPlayerState
 	protected int m_iSessionSpent;
 	protected int m_iDailyLottoDay = -1;
 
-	void RHD_ATAKPlayerState(int startingMoney = 13550) { m_iMoney = Math.Max(0, startingMoney); }
+	void RHD_ATAKPlayerState(int startingMoney = -1)
+	{
+		if (startingMoney < 0)
+			startingMoney = RHD_VirtualPlayerEasyConfig.STARTING_VIRTUAL_MONEY;
+		m_iMoney = Math.Max(0, startingMoney);
+	}
 	int GetMoney() { return m_iMoney; }
 	int GetKills() { return m_iSessionKills; }
 	int GetRevives() { return m_iSessionRevives; }
