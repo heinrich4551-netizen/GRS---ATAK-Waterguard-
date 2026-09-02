@@ -1,5 +1,5 @@
 // RHD SHARED SHOP
-// All F6/F8 shop prices and cart math use this service.
+// One price table is shared by F6, F7 and F8.
 class RHD_ShopCartEntry
 {
 	string m_sItemId;
@@ -8,27 +8,45 @@ class RHD_ShopCartEntry
 
 class RHD_Shop
 {
+	protected static ref map<string, int> s_mPrices = new map<string, int>();
+	protected static bool s_bInitialized;
+	static void Initialize()
+	{
+		if (s_bInitialized) return;
+		s_bInitialized = true;
+		AddDefault("APPLE", RHD_ShopConfig.APPLE_SELL);
+		AddDefault("CANNABIS_PLANT", RHD_ShopConfig.CANNABIS_PLANT_SELL);
+		AddDefault("COCA_LEAF", RHD_ShopConfig.COCA_LEAF_SELL);
+		AddDefault("CORN_COB", RHD_ShopConfig.CORN_COB_SELL);
+		AddDefault("GRAPES", RHD_ShopConfig.GRAPES_SELL);
+		AddDefault("PEACHES", RHD_ShopConfig.PEACHES_SELL);
+		AddDefault("IRON_ORE", RHD_ShopConfig.IRON_ORE_SELL);
+		AddDefault("COPPER_ORE", RHD_ShopConfig.COPPER_ORE_SELL);
+		AddDefault("GOLD_ORE", RHD_ShopConfig.GOLD_ORE_SELL);
+		AddDefault("DIAMOND", RHD_ShopConfig.DIAMOND_SELL);
+		AddDefault("OIL_SAND", RHD_ShopConfig.OIL_SAND_SELL);
+		AddDefault("IRON", RHD_ShopConfig.IRON_SELL);
+		AddDefault("COPPER", RHD_ShopConfig.COPPER_SELL);
+		AddDefault("GOLD", RHD_ShopConfig.GOLD_SELL);
+		AddDefault("OIL", RHD_ShopConfig.OIL_SELL);
+		AddDefault("CANNABIS_FLOWER", RHD_ShopConfig.CANNABIS_FLOWER_SELL);
+		AddDefault("COCAINE", RHD_ShopConfig.COCAINE_SELL);
+		AddDefault("CANNED_CORN", RHD_ShopConfig.CANNED_CORN_SELL);
+	}
+	protected static void AddDefault(string itemId, int price) { s_mPrices.Set(itemId, price); }
+	static bool SetSellPrice(string itemId, int price)
+	{
+		Initialize();
+		if (itemId.IsEmpty() || price < 0 || !s_mPrices.Contains(itemId)) return false;
+		s_mPrices.Set(itemId, price);
+		return true;
+	}
 	static bool GetSellPrice(string itemId, out int price)
 	{
+		Initialize();
 		price = 0;
-		if (itemId == "APPLE") price = RHD_ShopConfig.APPLE_SELL;
-		else if (itemId == "CANNABIS_PLANT") price = RHD_ShopConfig.CANNABIS_PLANT_SELL;
-		else if (itemId == "COCA_LEAF") price = RHD_ShopConfig.COCA_LEAF_SELL;
-		else if (itemId == "CORN_COB") price = RHD_ShopConfig.CORN_COB_SELL;
-		else if (itemId == "GRAPES") price = RHD_ShopConfig.GRAPES_SELL;
-		else if (itemId == "PEACHES") price = RHD_ShopConfig.PEACHES_SELL;
-		else if (itemId == "IRON_ORE") price = RHD_ShopConfig.IRON_ORE_SELL;
-		else if (itemId == "COPPER_ORE") price = RHD_ShopConfig.COPPER_ORE_SELL;
-		else if (itemId == "GOLD_ORE") price = RHD_ShopConfig.GOLD_ORE_SELL;
-		else if (itemId == "DIAMOND") price = RHD_ShopConfig.DIAMOND_SELL;
-		else if (itemId == "OIL_SAND") price = RHD_ShopConfig.OIL_SAND_SELL;
-		else if (itemId == "IRON") price = RHD_ShopConfig.IRON_SELL;
-		else if (itemId == "COPPER") price = RHD_ShopConfig.COPPER_SELL;
-		else if (itemId == "GOLD") price = RHD_ShopConfig.GOLD_SELL;
-		else if (itemId == "OIL") price = RHD_ShopConfig.OIL_SELL;
-		else if (itemId == "CANNABIS_FLOWER") price = RHD_ShopConfig.CANNABIS_FLOWER_SELL;
-		else if (itemId == "COCAINE") price = RHD_ShopConfig.COCAINE_SELL;
-		else if (itemId == "CANNED_CORN") price = RHD_ShopConfig.CANNED_CORN_SELL;
+		if (!s_mPrices.Contains(itemId)) return false;
+		price = s_mPrices.Get(itemId);
 		return price > 0;
 	}
 	static int CalculateSale(string itemId, int quantity)
