@@ -41,7 +41,7 @@ class GRS_ATAKMenuController
 	GRS_ATAKPlayerState GetPlayerState() { return m_PlayerState; }
 	GRS_ATAKMapState GetMapState() { return m_MapState; }
 
-	// This boolean must come from the server's real admin/permission system.
+	// callerIsAdmin must be obtained from the mission's server-side permission system.
 	bool AdminSetShopItem(string itemId, int price, bool callerIsAdmin)
 	{
 		if (!callerIsAdmin || itemId.IsEmpty() || price < 0)
@@ -77,42 +77,59 @@ class GRS_ATAKMenuController
 			return false;
 
 		int price = m_mShopPrices.Get(itemId);
-		if (!SpawnPurchasedItemForPlayer(itemId))
-			return false;
 		if (!m_PlayerState.TrySpend(price))
 			return false;
-		return true;
+		if (SpawnPurchasedItemForPlayer(itemId))
+			return true;
+
+		m_PlayerState.Refund(price);
+		return false;
 	}
 
-	bool PlayBlackjack(int stake, bool playerWon, bool blackjack)
+	// Server-side casino entry points. Outcomes are generated here, never supplied by
+	// an untrusted client. The returned value is the total payout credited to the player.
+	int PlayBlackjack(int stake)
 	{
 		if (!GRS_ATAKFeatures.IsValidBet(stake, GRS_ATAKConfig.BLACKJACK_MIN_STAKE))
-			return false;
+			return 0;
 		if (!m_PlayerState.TrySpend(stake))
-			return false;
-		m_PlayerState.AddMoney(GRS_ATAKFeatures.BlackjackPayout(playerWon, blackjack, stake));
-		return true;
+			return 0;
+
+		int roll = Math.RandomInt(0, 100);
+		bool blackjack = roll < 5;
+		bool playerWon = roll < 48;
+		int payout = GRS_ATAKFeatures.BlackjackPayout(playerWon, blackjack, stake);
+		m_PlayerState.AddMoney(payout);
+		return payout;
 	}
 
-	bool PlayRoulette(int stake, int selectedNumber, int winningNumber)
+	int PlayRoulette(int stake, int selectedNumber)
 	{
 		if (!GRS_ATAKFeatures.IsValidBet(stake, GRS_ATAKConfig.ROULETTE_MIN_STAKE))
-			return false;
+			return 0;
+		if (selectedNumber < 0 || selectedNumber > 36)
+			return 0;
 		if (!m_PlayerState.TrySpend(stake))
-			return false;
-		m_PlayerState.AddMoney(GRS_ATAKFeatures.RoulettePayout(winningNumber, selectedNumber, stake));
-		return true;
+			return 0;
+
+		int winningNumber = Math.RandomInt(0, 37);
+		int payout = GRS_ATAKFeatures.RoulettePayout(winningNumber, selectedNumber, stake);
+		m_PlayerState.AddMoney(payout);
+		return payout;
 	}
 
-	bool BuyScratchCard(int roll)
+	int BuyScratchCard()
 	{
 		if (!m_PlayerState.TrySpend(GRS_ATAKConfig.SCRATCH_CARD_COST))
-			return false;
-		m_PlayerState.AddMoney(GRS_ATAKFeatures.ScratchPayout(roll, GRS_ATAKConfig.SCRATCH_CARD_COST));
-		return true;
+			return 0;
+
+		int roll = Math.RandomInt(0, 100);
+		int payout = GRS_ATAKFeatures.ScratchPayout(roll, GRS_ATAKConfig.SCRATCH_CARD_COST);
+		m_PlayerState.AddMoney(payout);
+		return payout;
 	}
 
-	bool ClaimDailyLotto(int dayKey, int winningTicket, int playerTicket, int jackpot)
+	bool ClaimDailyLotto(int dayKey, int playerTicket)
 	{
 		if (m_PlayerState.HasClaimedDailyLotto(dayKey))
 			return false;
@@ -120,8 +137,9 @@ class GRS_ATAKMenuController
 			return false;
 
 		m_PlayerState.MarkDailyLottoClaimed(dayKey);
-		if (winningTicket == playerTicket && jackpot > 0)
-			m_PlayerState.AddMoney(jackpot);
+		int winningTicket = Math.RandomInt(0, 1000000);
+		if (playerTicket == winningTicket)
+			m_PlayerState.AddMoney(100000);
 		return true;
 	}
 
@@ -153,8 +171,8 @@ class GRS_ATAKMenuController
 	void RecordEnemyRevive() { m_PlayerState.RecordRevive(); }
 	void RecordBaseSupply() { m_PlayerState.RecordSupply(); }
 
-	// Mission integration hooks. Keep these as the only places that touch mission
-	// inventory, AI, fire-support, crate and smoke implementations.
+	// Mission integration hooks. Replace only these methods with the mission's real
+	// inventory, AI, mortar and supply-drop implementations.
 	protected bool SpawnPurchasedItemForPlayer(string itemId) { return !itemId.IsEmpty(); }
 	protected bool SpawnHandlerAI(GRS_ATAKHandlerRequest request) { return !request.m_sPrefab.IsEmpty(); }
 	protected bool CallPreciseMortar(vector target) { return true; }
