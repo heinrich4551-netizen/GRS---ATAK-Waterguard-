@@ -44,8 +44,6 @@ class GRS_AdminController
 
 	void OnF7(float value, EActionTrigger reason)
 	{
-		// Authorization is checked every time the menu is requested. This prevents
-		// a stale local UI state from becoming an authorization bypass.
 		RefreshAuthorization();
 		if (!m_bAuthorized)
 			return;
@@ -59,8 +57,8 @@ class GRS_AdminController
 
 	bool IsAuthorizedAdmin()
 	{
-		// Fail closed. Override this method in the mission's server-authority layer
-		// and validate the caller against the actual Reforger/server permission source.
+		// Fail closed. Override this in the mission/server authority layer and
+		// validate the caller against the actual Reforger permission source.
 		return false;
 	}
 
@@ -98,7 +96,6 @@ class GRS_AdminController
 		RefreshAuthorization();
 		if (!m_bAuthorized || !request || request.m_sAction.IsEmpty())
 			return false;
-
 		if (!ValidateRequest(request))
 			return false;
 
@@ -127,22 +124,15 @@ class GRS_AdminController
 				return false;
 		}
 
-		if (request.m_sAction == "TeleportSelf" || request.m_sAction == "TeleportTarget" || request.m_sAction == "Spawn")
-		{
-			// Position validation is intentionally conservative. The mission hook must
-			// perform terrain, safe-zone and line-of-sight checks appropriate to its map.
-			if (request.m_vPosition == "0 0 0")
-				return false;
-		}
-
+		// Coordinate validation belongs to the mission because terrain bounds,
+		// safe zones and map origin differ between Reforger scenarios.
 		return true;
 	}
 
 	protected bool DispatchServerAction(GRS_AdminActionRequest request)
 	{
-		// Every action below is a server-authoritative integration point. The base mod
-		// never guesses undocumented engine APIs, player identifiers, prefab GUIDs or
-		// moderation backends. Missions override these hooks with their real systems.
+		// These are server-authoritative integration points. The base mod does not
+		// guess undocumented engine APIs, player identifiers, prefab GUIDs or bans.
 		switch (request.m_sAction)
 		{
 			case "Heal": return ServerHeal(request.m_sTarget, request.m_sValue.ToInt());
@@ -188,11 +178,9 @@ class GRS_AdminController
 			m_aActionLog.Remove(0);
 	}
 
-	// -------------------------------------------------------------------------
 	// Mission integration hooks. Override these in the actual mission/server
-	// implementation. Base implementations fail safely rather than pretending
+	// implementation. Base implementations fail safely instead of pretending
 	// that a client-side call changed authoritative game state.
-	// -------------------------------------------------------------------------
 	protected bool ServerHeal(string target, int amount) { return false; }
 	protected bool ServerRevive(string target) { return false; }
 	protected bool ServerKill(string target) { return false; }
