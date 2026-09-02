@@ -35,13 +35,17 @@ class GRS_ATAKMenuController
 	void Toggle()
 	{
 		m_bOpen = !m_bOpen;
+		if (m_bOpen)
+			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.GRS_ATAK_Menu);
+		else
+			GetGame().GetMenuManager().CloseMenuByPreset(ChimeraMenuPreset.GRS_ATAK_Menu);
 	}
 
 	bool IsOpen() { return m_bOpen; }
 	GRS_ATAKPlayerState GetPlayerState() { return m_PlayerState; }
 	GRS_ATAKMapState GetMapState() { return m_MapState; }
 
-	// callerIsAdmin must be obtained from the mission's server-side permission system.
+	// callerIsAdmin must come from the mission's server-side permission system.
 	bool AdminSetShopItem(string itemId, int price, bool callerIsAdmin)
 	{
 		if (!callerIsAdmin || itemId.IsEmpty() || price < 0)
