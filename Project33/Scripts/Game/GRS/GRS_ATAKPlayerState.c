@@ -7,7 +7,7 @@ class GRS_ATAKPlayerState
 	protected int m_iSessionSpent;
 	protected int m_iDailyLottoDay = -1;
 
-	void GRS_ATAKPlayerState(int startingMoney = 0)
+	void GRS_ATAKPlayerState(int startingMoney = 1350)
 	{
 		m_iMoney = Math.Max(0, startingMoney);
 	}
