@@ -2,5 +2,5 @@
 // The matching preset/layout entry must be created in Workbench.
 modded enum ChimeraMenuPreset : ScriptMenuPresetEnum
 {
-	GRS_Admin_Menu
+	RHD_Admin_Menu
 };
