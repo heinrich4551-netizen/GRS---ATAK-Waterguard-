@@ -63,11 +63,17 @@ class RHD_ShopCart
 	bool Add(string itemId, int quantity)
 	{
 		int unitPrice;
-		if (itemId.IsEmpty() || quantity <= 0 || !RHD_Shop.GetSellPrice(itemId, unitPrice)) return false;
+		if (itemId.IsEmpty() || quantity <= 0 || quantity > RHD_VirtualPlayerEasyConfig.MAX_SHOP_CART_LINE_QUANTITY || !RHD_Shop.GetSellPrice(itemId, unitPrice)) return false;
 		foreach (RHD_ShopCartEntry entry : m_aEntries)
-			if (entry && entry.m_sItemId == itemId) { entry.m_iQuantity += quantity; return true; }
+		{
+			if (!entry || entry.m_sItemId != itemId) continue;
+			if (entry.m_iQuantity > RHD_VirtualPlayerEasyConfig.MAX_SHOP_CART_LINE_QUANTITY - quantity) return false;
+			entry.m_iQuantity += quantity;
+			return true;
+		}
 		RHD_ShopCartEntry entry = new RHD_ShopCartEntry();
-		entry.m_sItemId = itemId; entry.m_iQuantity = quantity;
+		entry.m_sItemId = itemId;
+		entry.m_iQuantity = quantity;
 		m_aEntries.Insert(entry);
 		return true;
 	}
