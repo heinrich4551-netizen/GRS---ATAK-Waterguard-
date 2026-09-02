@@ -4,14 +4,7 @@ class GRS_AdminActionRequest
 	string m_sTarget;
 	string m_sValue;
 	vector m_vPosition;
-
-	void GRS_AdminActionRequest(string action, string target = "", string value = "")
-	{
-		m_sAction = action;
-		m_sTarget = target;
-		m_sValue = value;
-		m_vPosition = "0 0 0";
-	}
+	void GRS_AdminActionRequest(string action, string target = "", string value = "") { m_sAction = action; m_sTarget = target; m_sValue = value; m_vPosition = "0 0 0"; }
 };
 
 class GRS_AdminController
@@ -23,116 +16,61 @@ class GRS_AdminController
 	protected int m_iSelectedPlayer = -1;
 	protected GRS_AdminTab m_eTab = GRS_AdminTab.PLAYERS;
 
-	void GRS_AdminController()
-	{
-		m_Model = new GRS_AdminModel();
-	}
-
+	void GRS_AdminController() { m_Model = new GRS_AdminModel(); }
 	void Initialize()
 	{
 		InputManager inputManager = GetGame().GetInputManager();
-		if (inputManager)
-			inputManager.AddActionListener("GRS_Admin_Menu", EActionTrigger.DOWN, OnF7);
+		if (inputManager) inputManager.AddActionListener("GRS_Admin_Menu", EActionTrigger.DOWN, OnF7);
 	}
-
 	void Shutdown()
 	{
 		InputManager inputManager = GetGame().GetInputManager();
-		if (inputManager)
-			inputManager.RemoveActionListener("GRS_Admin_Menu", EActionTrigger.DOWN, OnF7);
+		if (inputManager) inputManager.RemoveActionListener("GRS_Admin_Menu", EActionTrigger.DOWN, OnF7);
 	}
-
-	void OnF7(float value, EActionTrigger reason)
-	{
-		RefreshAuthorization();
-		if (!m_bAuthorized)
-			return;
-		Toggle();
-	}
-
-	void RefreshAuthorization()
-	{
-		m_bAuthorized = IsAuthorizedAdmin();
-	}
-
-	bool IsAuthorizedAdmin()
-	{
-		// Fail closed. Override this in the mission/server authority layer and
-		// validate the caller against the actual Reforger permission source.
-		return false;
-	}
-
+	void OnF7(float value, EActionTrigger reason) { RefreshAuthorization(); if (!m_bAuthorized) return; Toggle(); }
+	void RefreshAuthorization() { m_bAuthorized = IsAuthorizedAdmin(); }
+	bool IsAuthorizedAdmin() { return false; }
 	void Toggle()
 	{
 		m_bOpen = !m_bOpen;
-		if (m_bOpen)
-			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.GRS_Admin_Menu);
-		else
-			GetGame().GetMenuManager().CloseMenuByPreset(ChimeraMenuPreset.GRS_Admin_Menu);
+		if (m_bOpen) GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.GRS_Admin_Menu);
+		else GetGame().GetMenuManager().CloseMenuByPreset(ChimeraMenuPreset.GRS_Admin_Menu);
 	}
-
 	bool IsOpen() { return m_bOpen; }
 	bool IsAuthorized() { return m_bAuthorized; }
 	GRS_AdminTab GetTab() { return m_eTab; }
 	void SetTab(GRS_AdminTab tab) { m_eTab = tab; }
 	void SetSelectedPlayer(int playerId) { m_iSelectedPlayer = playerId; }
 	int GetSelectedPlayer() { return m_iSelectedPlayer; }
-
-	string GetTabSummary()
-	{
-		return GRS_AdminModel.GetTabSummary(m_eTab);
-	}
-
+	string GetTabSummary() { return GRS_AdminModel.GetTabSummary(m_eTab); }
 	int GetActionLogCount() { return m_aActionLog.Count(); }
-	string GetActionLog(int index)
-	{
-		if (index < 0 || index >= m_aActionLog.Count())
-			return "";
-		return m_aActionLog[index];
-	}
+	string GetActionLog(int index) { if (index < 0 || index >= m_aActionLog.Count()) return ""; return m_aActionLog[index]; }
 
 	bool Execute(GRS_AdminActionRequest request)
 	{
 		RefreshAuthorization();
-		if (!m_bAuthorized || !request || request.m_sAction.IsEmpty())
-			return false;
-		if (!ValidateRequest(request))
-			return false;
-
+		if (!m_bAuthorized || !request || request.m_sAction.IsEmpty() || !ValidateRequest(request)) return false;
 		bool success = DispatchServerAction(request);
-		if (success)
-			LogAction(request);
+		if (success) LogAction(request);
 		return success;
 	}
-
 	protected bool ValidateRequest(GRS_AdminActionRequest request)
 	{
-		if (request.m_sAction.IsEmpty())
-			return false;
-
+		if (request.m_sAction.IsEmpty()) return false;
 		if (request.m_sAction == "GrantMoney" || request.m_sAction == "RemoveMoney")
 		{
 			int amount = request.m_sValue.ToInt();
-			if (amount < 0 || amount > GRS_AdminConfig.MAX_MONEY_GRANT)
-				return false;
+			if (amount < 0 || amount > GRS_AdminConfig.MAX_MONEY_GRANT) return false;
 		}
-
 		if (request.m_sAction == "Heal")
 		{
 			int amount = request.m_sValue.ToInt();
-			if (amount < 0 || amount > GRS_AdminConfig.MAX_HEAL_AMOUNT)
-				return false;
+			if (amount < 0 || amount > GRS_AdminConfig.MAX_HEAL_AMOUNT) return false;
 		}
-
-		// Coordinate validation belongs to the mission because terrain bounds,
-		// safe zones and map origin differ between Reforger scenarios.
 		return true;
 	}
-
 	protected bool DispatchServerAction(GRS_AdminActionRequest request)
 	{
-		// These are server-authoritative integration points. The base mod does not
-		// guess undocumented engine APIs, player identifiers, prefab GUIDs or bans.
 		switch (request.m_sAction)
 		{
 			case "Heal": return ServerHeal(request.m_sTarget, request.m_sValue.ToInt());
@@ -170,17 +108,12 @@ class GRS_AdminController
 		}
 		return false;
 	}
-
 	protected void LogAction(GRS_AdminActionRequest request)
 	{
 		m_aActionLog.Insert(request.m_sAction + " target=" + request.m_sTarget + " value=" + request.m_sValue);
-		while (m_aActionLog.Count() > GRS_AdminConfig.MAX_ACTION_LOG_ENTRIES)
-			m_aActionLog.Remove(0);
+		while (m_aActionLog.Count() > GRS_AdminConfig.MAX_ACTION_LOG_ENTRIES) m_aActionLog.Remove(0);
 	}
 
-	// Mission integration hooks. Override these in the actual mission/server
-	// implementation. Base implementations fail safely instead of pretending
-	// that a client-side call changed authoritative game state.
 	protected bool ServerHeal(string target, int amount) { return false; }
 	protected bool ServerRevive(string target) { return false; }
 	protected bool ServerKill(string target) { return false; }
@@ -206,7 +139,12 @@ class GRS_AdminController
 	protected bool ServerAnnounce(string message) { return false; }
 	protected bool ServerGrantMoney(string target, int amount) { return false; }
 	protected bool ServerRemoveMoney(string target, int amount) { return false; }
-	protected bool ServerSetShopPrice(string itemId, int price) { return false; }
+	protected bool ServerSetShopPrice(string itemId, int price)
+	{
+		GRS_ATAKMenuController shop = GRS_ATAKMenuController.GetInstance();
+		if (!shop) return false;
+		return shop.AdminSetShopItem(itemId, price, true);
+	}
 	protected bool ServerEndMission() { return false; }
 	protected bool ServerRestartMission() { return false; }
 	protected bool ServerSave() { return false; }
