@@ -178,8 +178,7 @@ class RHD_LoadoutEditorModel
 		if (!m_ActiveProfile || containerId.IsEmpty() || itemId.IsEmpty() || quantity <= 0) return false;
 		foreach (RHD_LoadoutContainerEntry existing : m_ActiveProfile.m_aContainers)
 		{
-			if (!existing || existing.m_sContainerId != containerId) continue;
-			if (existing.m_sItemId != itemId) continue;
+			if (!existing || existing.m_sContainerId != containerId || existing.m_sItemId != itemId) continue;
 			existing.m_iQuantity = Math.Min(existing.m_iCapacity, existing.m_iQuantity + quantity);
 			return true;
 		}
@@ -235,6 +234,19 @@ class RHD_LoadoutEditorModel
 		return true;
 	}
 
+	bool RemoveLooseItem(string itemId, string category, int quantity)
+	{
+		if (!m_ActiveProfile || itemId.IsEmpty() || quantity <= 0) return false;
+		foreach (RHD_LoadoutContainerEntry entry : m_ActiveProfile.m_aLooseItems)
+		{
+			if (!entry || entry.m_sItemId != itemId || entry.m_sCategory != category || entry.m_iQuantity < quantity) continue;
+			entry.m_iQuantity -= quantity;
+			if (entry.m_iQuantity <= 0) m_ActiveProfile.m_aLooseItems.RemoveItem(entry);
+			return true;
+		}
+		return false;
+	}
+
 	bool SetZeroing(string slotId, int meters)
 	{
 		if (!RHD_LoadoutEditorConfig.ENABLE_ZEROING) return false;
@@ -263,9 +275,5 @@ class RHD_LoadoutEditorModel
 		return count;
 	}
 
-	bool HasAnyItem()
-	{
-		if (!m_ActiveProfile) return false;
-		return CountEquippedItems() > 0;
-	}
+	bool HasAnyItem() { return CountEquippedItems() > 0; }
 };
