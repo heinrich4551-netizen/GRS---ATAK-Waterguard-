@@ -32,30 +32,47 @@ class RHD_ATAKMenuController
 		RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance();
 		if (!virtualPlayer) return false;
 		RHD_VirtualPlayerState state = virtualPlayer.GetState();
+		if (!state) return false;
 		int total = m_ShopCart.GetTotal();
-		if (total <= 0 || !m_PlayerState.TrySpend(total)) return false;
+		if (total <= 0 || !m_PlayerState.CanAfford(total)) return false;
 		for (int i = 0; i < m_ShopCart.GetCount(); i++)
 		{
 			RHD_ShopCartEntry entry = m_ShopCart.Get(i);
-			if (!entry || !RHD_VirtualProduction.IsKnownVirtualItem(entry.m_sItemId)) { m_PlayerState.Refund(total); return false; }
+			if (!entry || !RHD_VirtualProduction.IsKnownVirtualItem(entry.m_sItemId) || !state.CanAddVirtualItemType(entry.m_sItemId)) return false;
 		}
+		if (state.GetVirtualItemTypeCount() + CountNewCartTypes(state) > RHD_VirtualPlayerConfig.MAX_VIRTUAL_ITEM_TYPES) return false;
+		if (!m_PlayerState.TrySpend(total)) return false;
 		for (int j = 0; j < m_ShopCart.GetCount(); j++)
 		{
 			RHD_ShopCartEntry purchase = m_ShopCart.Get(j);
-			if (!state.AddVirtualItem(purchase.m_sItemId, RHD_VirtualProduction.GetDisplayName(purchase.m_sItemId), purchase.m_iQuantity)) { m_PlayerState.Refund(total); return false; }
+			if (!purchase || !state.AddVirtualItem(purchase.m_sItemId, RHD_VirtualProduction.GetDisplayName(purchase.m_sItemId), purchase.m_iQuantity))
+			{
+				m_PlayerState.Refund(total);
+				return false;
+			}
 		}
 		m_ShopCart.Clear();
 		return true;
+	}
+	protected int CountNewCartTypes(RHD_VirtualPlayerState state)
+	{
+		int count = 0;
+		for (int i = 0; i < m_ShopCart.GetCount(); i++)
+		{
+			RHD_ShopCartEntry entry = m_ShopCart.Get(i);
+			if (entry && state.GetVirtualItemQuantity(entry.m_sItemId) <= 0) count++;
+		}
+		return count;
 	}
 	bool SellVirtualItem(string itemId, int quantity)
 	{
 		if (!RHD_VirtualPlayerEasyConfig.ALLOW_SHOP_SELLING || quantity <= 0) return false;
 		RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance(); if (!virtualPlayer) return false;
-		RHD_VirtualPlayerState state = virtualPlayer.GetState(); if (state.GetVirtualItemQuantity(itemId) < quantity) return false;
+		RHD_VirtualPlayerState state = virtualPlayer.GetState(); if (!state || state.GetVirtualItemQuantity(itemId) < quantity) return false;
 		int total = RHD_Shop.CalculateSale(itemId, quantity); if (total <= 0 || !state.RemoveVirtualItem(itemId, quantity)) return false;
 		m_PlayerState.AddMoney(total); return true;
 	}
-	bool SellAllVirtualItem(string itemId) { int quantity = RHD_VirtualPlayerMenuService.GetInstance().GetState().GetVirtualItemQuantity(itemId); return quantity > 0 && SellVirtualItem(itemId, quantity); }
+	bool SellAllVirtualItem(string itemId) { RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance(); if (!virtualPlayer) return false; RHD_VirtualPlayerState state = virtualPlayer.GetState(); if (!state) return false; int quantity = state.GetVirtualItemQuantity(itemId); return quantity > 0 && SellVirtualItem(itemId, quantity); }
 	int PlayBlackjack(int stake) { if (!RHD_ATAKFeatures.IsValidBet(stake, RHD_ATAKConfig.BLACKJACK_MIN_STAKE) || !m_PlayerState.TrySpend(stake)) return 0; int roll = Math.RandomInt(0, 100); int payout = RHD_ATAKFeatures.BlackjackPayout(roll < 48, roll < 5, stake); m_PlayerState.AddMoney(payout); return payout; }
 	int PlayRoulette(int stake, int selectedNumber) { if (!RHD_ATAKFeatures.IsValidBet(stake, RHD_ATAKConfig.ROULETTE_MIN_STAKE) || selectedNumber < 0 || selectedNumber > 36 || !m_PlayerState.TrySpend(stake)) return 0; int payout = RHD_ATAKFeatures.RoulettePayout(Math.RandomInt(0, 37), selectedNumber, stake); m_PlayerState.AddMoney(payout); return payout; }
 	int BuyScratchCard() { if (!m_PlayerState.TrySpend(RHD_ATAKConfig.SCRATCH_CARD_COST)) return 0; int payout = RHD_ATAKFeatures.ScratchPayout(Math.RandomInt(0, 100), RHD_ATAKConfig.SCRATCH_CARD_COST); m_PlayerState.AddMoney(payout); return payout; }
