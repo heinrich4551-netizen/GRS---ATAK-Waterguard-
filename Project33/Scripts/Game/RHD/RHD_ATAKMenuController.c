@@ -7,15 +7,7 @@ class RHD_ATAKMenuController
 	protected ref RHD_ShopCart m_ShopCart;
 	protected ref array<string> m_aShopItems = {};
 	protected int m_iRecruitedAI;
-
-	void RHD_ATAKMenuController()
-	{
-		s_Instance = this;
-		m_PlayerState = new RHD_ATAKPlayerState();
-		m_MapState = new RHD_ATAKMapState();
-		m_ShopCart = new RHD_ShopCart();
-		LoadDefaultShop();
-	}
+	void RHD_ATAKMenuController() { s_Instance = this; m_PlayerState = new RHD_ATAKPlayerState(); m_MapState = new RHD_ATAKMapState(); m_ShopCart = new RHD_ShopCart(); LoadDefaultShop(); }
 	static RHD_ATAKMenuController GetInstance() { return s_Instance; }
 	void Initialize() { RHD_Shop.Initialize(); InputManager inputManager = GetGame().GetInputManager(); if (inputManager) inputManager.AddActionListener("RHD_ATAK_Menu", EActionTrigger.DOWN, OnF6); }
 	void Shutdown() { InputManager inputManager = GetGame().GetInputManager(); if (inputManager) inputManager.RemoveActionListener("RHD_ATAK_Menu", EActionTrigger.DOWN, OnF6); if (s_Instance == this) s_Instance = null; }
@@ -24,12 +16,7 @@ class RHD_ATAKMenuController
 	bool IsOpen() { return m_bOpen; }
 	RHD_ATAKPlayerState GetPlayerState() { return m_PlayerState; }
 	RHD_ATAKMapState GetMapState() { return m_MapState; }
-	protected void LoadDefaultShop()
-	{
-		m_aShopItems.Clear();
-		array<string> itemIds = {"APPLE","CANNABIS_PLANT","COCA_LEAF","CORN_COB","GRAPES","PEACHES","IRON_ORE","COPPER_ORE","GOLD_ORE","DIAMOND","OIL_SAND","IRON","COPPER","GOLD","OIL","CANNABIS_FLOWER","COCAINE","CANNED_CORN"};
-		foreach (string itemId : itemIds) m_aShopItems.Insert(itemId);
-	}
+	protected void LoadDefaultShop() { m_aShopItems.Clear(); array<string> itemIds = {"APPLE","CANNABIS_PLANT","COCA_LEAF","CORN_COB","GRAPES","PEACHES","IRON_ORE","COPPER_ORE","GOLD_ORE","DIAMOND","OIL_SAND","IRON","COPPER","GOLD","OIL","CANNABIS_FLOWER","COCAINE","CANNED_CORN"}; foreach (string itemId : itemIds) m_aShopItems.Insert(itemId); }
 	bool AdminSetShopItem(string itemId, int price, bool callerIsAdmin) { return callerIsAdmin && RHD_Shop.SetSellPrice(itemId, price); }
 	int GetShopItemCount() { return m_aShopItems.Count(); }
 	string GetShopItem(int index) { if (index < 0 || index >= m_aShopItems.Count()) return ""; return m_aShopItems[index]; }
@@ -42,32 +29,33 @@ class RHD_ATAKMenuController
 	bool CheckoutShopCart()
 	{
 		if (!RHD_VirtualPlayerEasyConfig.ALLOW_SHOP_BUYING || m_ShopCart.GetCount() <= 0) return false;
+		RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance();
+		if (!virtualPlayer) return false;
+		RHD_VirtualPlayerState state = virtualPlayer.GetState();
 		int total = m_ShopCart.GetTotal();
 		if (total <= 0 || !m_PlayerState.TrySpend(total)) return false;
 		for (int i = 0; i < m_ShopCart.GetCount(); i++)
 		{
 			RHD_ShopCartEntry entry = m_ShopCart.Get(i);
-			if (!entry || !RHD_VirtualProduction.IsKnownVirtualItem(entry.m_sItemId) || !m_VirtualInventoryAdd(entry.m_sItemId, entry.m_iQuantity))
-			{
-				m_PlayerState.Refund(total);
-				return false;
-			}
+			if (!entry || !RHD_VirtualProduction.IsKnownVirtualItem(entry.m_sItemId)) { m_PlayerState.Refund(total); return false; }
+		}
+		for (int j = 0; j < m_ShopCart.GetCount(); j++)
+		{
+			RHD_ShopCartEntry purchase = m_ShopCart.Get(j);
+			if (!state.AddVirtualItem(purchase.m_sItemId, RHD_VirtualProduction.GetDisplayName(purchase.m_sItemId), purchase.m_iQuantity)) { m_PlayerState.Refund(total); return false; }
 		}
 		m_ShopCart.Clear();
 		return true;
 	}
 	bool SellVirtualItem(string itemId, int quantity)
 	{
-		if (!RHD_VirtualPlayerEasyConfig.ALLOW_SHOP_SELLING || quantity <= 0 || m_VirtualInventoryQuantity(itemId) < quantity) return false;
-		int total = RHD_Shop.CalculateSale(itemId, quantity);
-		if (total <= 0 || !m_VirtualInventoryRemove(itemId, quantity)) return false;
-		m_PlayerState.AddMoney(total);
-		return true;
+		if (!RHD_VirtualPlayerEasyConfig.ALLOW_SHOP_SELLING || quantity <= 0) return false;
+		RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance(); if (!virtualPlayer) return false;
+		RHD_VirtualPlayerState state = virtualPlayer.GetState(); if (state.GetVirtualItemQuantity(itemId) < quantity) return false;
+		int total = RHD_Shop.CalculateSale(itemId, quantity); if (total <= 0 || !state.RemoveVirtualItem(itemId, quantity)) return false;
+		m_PlayerState.AddMoney(total); return true;
 	}
-	bool SellAllVirtualItem(string itemId) { int quantity = m_VirtualInventoryQuantity(itemId); return quantity > 0 && SellVirtualItem(itemId, quantity); }
-	protected bool m_VirtualInventoryAdd(string itemId, int quantity) { RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance(); return virtualPlayer && virtualPlayer.GetState().AddVirtualItem(itemId, RHD_VirtualProduction.GetDisplayName(itemId), quantity); }
-	protected int m_VirtualInventoryQuantity(string itemId) { RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance(); return virtualPlayer ? virtualPlayer.GetState().GetVirtualItemQuantity(itemId) : 0; }
-	protected bool m_VirtualInventoryRemove(string itemId, int quantity) { RHD_VirtualPlayerController virtualPlayer = RHD_VirtualPlayerMenuService.GetInstance(); return virtualPlayer && virtualPlayer.GetState().RemoveVirtualItem(itemId, quantity); }
+	bool SellAllVirtualItem(string itemId) { int quantity = RHD_VirtualPlayerMenuService.GetInstance().GetState().GetVirtualItemQuantity(itemId); return quantity > 0 && SellVirtualItem(itemId, quantity); }
 	int PlayBlackjack(int stake) { if (!RHD_ATAKFeatures.IsValidBet(stake, RHD_ATAKConfig.BLACKJACK_MIN_STAKE) || !m_PlayerState.TrySpend(stake)) return 0; int roll = Math.RandomInt(0, 100); int payout = RHD_ATAKFeatures.BlackjackPayout(roll < 48, roll < 5, stake); m_PlayerState.AddMoney(payout); return payout; }
 	int PlayRoulette(int stake, int selectedNumber) { if (!RHD_ATAKFeatures.IsValidBet(stake, RHD_ATAKConfig.ROULETTE_MIN_STAKE) || selectedNumber < 0 || selectedNumber > 36 || !m_PlayerState.TrySpend(stake)) return 0; int payout = RHD_ATAKFeatures.RoulettePayout(Math.RandomInt(0, 37), selectedNumber, stake); m_PlayerState.AddMoney(payout); return payout; }
 	int BuyScratchCard() { if (!m_PlayerState.TrySpend(RHD_ATAKConfig.SCRATCH_CARD_COST)) return 0; int payout = RHD_ATAKFeatures.ScratchPayout(Math.RandomInt(0, 100), RHD_ATAKConfig.SCRATCH_CARD_COST); m_PlayerState.AddMoney(payout); return payout; }
