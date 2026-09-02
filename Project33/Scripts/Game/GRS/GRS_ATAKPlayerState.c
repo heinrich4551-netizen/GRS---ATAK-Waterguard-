@@ -9,7 +9,7 @@ class GRS_ATAKPlayerState
 
 	void GRS_ATAKPlayerState(int startingMoney = 0)
 	{
-		m_iMoney = startingMoney;
+		m_iMoney = Math.Max(0, startingMoney);
 	}
 
 	int GetMoney() { return m_iMoney; }
@@ -18,12 +18,16 @@ class GRS_ATAKPlayerState
 	int GetSupplies() { return m_iSessionSupplies; }
 	int GetSpent() { return m_iSessionSpent; }
 
-	bool CanAfford(int amount) { return amount >= 0 && m_iMoney >= amount; }
+	bool CanAfford(int amount)
+	{
+		return amount >= 0 && m_iMoney >= amount;
+	}
 
 	bool TrySpend(int amount)
 	{
 		if (!CanAfford(amount))
 			return false;
+
 		m_iMoney -= amount;
 		m_iSessionSpent += amount;
 		return true;
@@ -53,6 +57,13 @@ class GRS_ATAKPlayerState
 		AddMoney(GRS_ATAKConfig.BASE_SUPPLY_REWARD);
 	}
 
-	bool HasClaimedDailyLotto(int day) { return m_iDailyLottoDay == day; }
-	void MarkDailyLottoClaimed(int day) { m_iDailyLottoDay = day; }
+	bool HasClaimedDailyLotto(int day)
+	{
+		return m_iDailyLottoDay == day;
+	}
+
+	void MarkDailyLottoClaimed(int day)
+	{
+		m_iDailyLottoDay = day;
+	}
 };
