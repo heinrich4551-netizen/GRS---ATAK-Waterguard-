@@ -6,16 +6,16 @@ class GRS_ATAKConfig
 	static const int BASE_SUPPLY_REWARD = 145;
 
 	static const int MORTAR_COST = 1786;
-	static const int SUPPLY_DROP_COST = 1000;
+	static const int SUPPLY_DROP_COST = 3500;
 
 	static const int BLACKJACK_MIN_STAKE = 500;
-	static const int ROULETTE_MIN_STAKE = 250;
-	static const int SCRATCH_CARD_COST = 250;
+	static const int ROULETTE_MIN_STAKE = 50;
+	static const int SCRATCH_CARD_COST = 50;
 	static const int DAILY_LOTTO_COST = 100;
 
 	// Maximum number of custom shop entries kept in the session table.
-	static const int MAX_SHOP_ITEMS = 128;
+	static const int MAX_SHOP_ITEMS = 328;
 
 	// Handler safety limit. The actual AI prefab/loadout comes from the mission integration.
-	static const int MAX_RECRUITED_AI = 4;
+	static const int MAX_RECRUITED_AI = 1;
 };
