@@ -4,7 +4,6 @@ class RHD_VirtualPlayerMenuUI : ChimeraMenuBase
 	protected TextWidget m_wMoney;
 	protected TextWidget m_wContent;
 	protected ref RHD_VirtualPlayerController m_Controller;
-	protected ref RHD_LoadoutEditorUI m_LoadoutUI;
 
 	protected override void OnMenuOpen()
 	{
@@ -20,8 +19,6 @@ class RHD_VirtualPlayerMenuUI : ChimeraMenuBase
 			SCR_ButtonTextComponent closeButton = SCR_ButtonTextComponent.Cast(m_wClose.FindHandler(SCR_ButtonTextComponent));
 			if (closeButton) closeButton.m_OnClicked.Insert(OnCloseClicked);
 		}
-		m_LoadoutUI = new RHD_LoadoutEditorUI();
-		m_LoadoutUI.Initialize(root);
 		Refresh();
 	}
 
@@ -32,8 +29,6 @@ class RHD_VirtualPlayerMenuUI : ChimeraMenuBase
 			SCR_ButtonTextComponent closeButton = SCR_ButtonTextComponent.Cast(m_wClose.FindHandler(SCR_ButtonTextComponent));
 			if (closeButton) closeButton.m_OnClicked.Remove(OnCloseClicked);
 		}
-		if (m_LoadoutUI) m_LoadoutUI.Shutdown();
-		m_LoadoutUI = null;
 		super.OnMenuClose();
 	}
 
@@ -53,11 +48,8 @@ class RHD_VirtualPlayerMenuUI : ChimeraMenuBase
 				"\nPROPERTY: " + state.m_aProperties.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_PROPERTIES.ToString() +
 				"\nSHOP: Add To Cart | Remove From Cart | Clear Cart | CHECKOUT" +
 				"\nSELL: Select item quantity or SELL ALL for one item type" +
-				"\nPRODUCTION: Refine Ore | Process Farming Inputs" +
-				"\nLOADOUT: WCS / GRS / RHS / Optics / Attachments / Zeroing / Holster" +
-				"\nUse the Loadout panel controls in this menu to edit and apply your profile.");
+				"\nPRODUCTION: Refine Ore | Process Farming Inputs");
 		}
-		if (m_LoadoutUI) m_LoadoutUI.Refresh();
 	}
 };
 class RHD_VirtualPlayerMenuService
