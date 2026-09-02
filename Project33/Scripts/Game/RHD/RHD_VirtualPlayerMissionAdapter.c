@@ -5,9 +5,10 @@
 // Keep third-party calls here so Project33 does not hard-code unknown APIs.
 //
 // Intended integrations from the supplied dependency set:
-// - Inventory / item transfer: Overthrow, Edit Entity Inventory, Bacon Loadout
-//   Editor, GRS - Essentials / Bag / Belts / Apparel / Modular Vests.
+// - Inventory / loadout: Overthrow, WCS_LoadoutEditor, Edit Entity Inventory,
+//   GRS - Essentials / Bag / Belts / Apparel / Modular Vests.
 // - ATAK / map services: GRS - ATAK Plugin Core, GRS - ATAK DEV, SWAG_ATAK,
+//   Anarchy Map Markers & Drawings, Anarchy Markers x GRS-ATAK DEV,
 //   PlayerMapMarkersByCryneX, AdvancedCompassByCryneX.
 // - Admin authority: AdminCommandsByCryneX and Game Master Enhanced.
 // - Persistence: Enfusion Persistence Framework and Enfusion Database Framework.
