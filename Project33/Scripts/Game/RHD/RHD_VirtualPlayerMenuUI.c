@@ -37,18 +37,23 @@ class RHD_VirtualPlayerMenuUI : ChimeraMenuBase
 	void Refresh()
 	{
 		if (!m_Controller) return;
+		RHD_VirtualPlayerState state = m_Controller.GetState();
 		RHD_ATAKPlayerState economy = m_Controller.GetSharedEconomy();
+		if (!state) return;
+		RHD_ContractRuntime.RefreshAvailable(state, m_Controller.GetMissionAdapter());
 		if (m_wMoney) m_wMoney.SetText("MONEY: $" + (economy ? economy.GetMoney().ToString() : "0") + " | CART: $" + m_Controller.GetShopCartTotal().ToString());
 		if (m_wContent)
 		{
-			RHD_VirtualPlayerState state = m_Controller.GetState();
-			m_wContent.SetText("INVENTORY: " + state.m_aBaseInventory.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_BASE_INVENTORY_SLOTS.ToString() +
+			m_wContent.SetText(
+				"PROFILE: " + (state.m_Progression ? state.m_Progression.GetSummary() : "UNAVAILABLE") +
+				"\nINVENTORY: " + state.m_aBaseInventory.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_BASE_INVENTORY_SLOTS.ToString() +
 				"\nVIRTUAL ITEMS: " + state.m_aVirtualInventory.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_VIRTUAL_ITEM_TYPES.ToString() +
 				"\nGARAGE: " + state.m_aGarage.Count().ToString() +
 				"\nPROPERTY: " + state.m_aProperties.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_PROPERTIES.ToString() +
 				"\nSHOP: Add To Cart | Remove From Cart | Clear Cart | CHECKOUT" +
 				"\nSELL: Select item quantity or SELL ALL for one item type" +
-				"\nPRODUCTION: Refine Ore | Process Farming Inputs");
+				"\nPRODUCTION: Refine Ore | Process Farming Inputs" +
+				"\n\n" + RHD_ContractRuntime.GetSummary(state));
 		}
 	}
 };
