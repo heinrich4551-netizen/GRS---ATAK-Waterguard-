@@ -71,14 +71,12 @@ class RHD_LoadoutEditorController
 	}
 
 	bool SetQuantity(string slotId, int quantity) { return m_Model && m_Model.SetQuantity(slotId, quantity); }
-
 	bool AddAttachment(string slotId, string attachmentId)
 	{
 		RHD_LoadoutSlot slot = m_Model.FindSlot(slotId);
 		if (!slot || slot.m_sItemId.IsEmpty() || attachmentId.IsEmpty() || !m_Mission.CanAttach(slot.m_sItemId, attachmentId)) return false;
 		return m_Model.AddAttachment(slotId, attachmentId);
 	}
-
 	bool RemoveAttachment(string slotId, string attachmentId) { return m_Model.RemoveAttachment(slotId, attachmentId); }
 
 	bool AddLooseItem(string itemId, string displayName, string category, int quantity)
@@ -87,6 +85,7 @@ class RHD_LoadoutEditorController
 		if (!m_Mission.IsItemAllowed(category, itemId)) return false;
 		return m_Model.AddLooseItem(itemId, displayName, category, quantity);
 	}
+	bool RemoveLooseItem(string itemId, string category, int quantity) { return m_Model.RemoveLooseItem(itemId, category, quantity); }
 
 	bool AddContainerItem(string containerId, string itemId, string displayName, string category, int quantity, int capacity)
 	{
@@ -94,8 +93,12 @@ class RHD_LoadoutEditorController
 		if (!m_Mission.IsItemAllowed(category, itemId)) return false;
 		return m_Model.AddContainerItem(containerId, itemId, displayName, category, quantity, capacity);
 	}
-
 	bool RemoveContainerItem(string containerId, string itemId, int quantity) { return m_Model.RemoveContainerItem(containerId, itemId, quantity); }
+
+	bool GetCatalog(string category, out array<string> itemIds) { return m_Mission.EnumerateItems(category, itemIds); }
+	bool GetCompatibleAttachments(string weaponItemId, out array<string> itemIds) { return m_Mission.EnumerateAttachments(weaponItemId, itemIds); }
+	bool GetCompatibleMagazines(string weaponItemId, out array<string> itemIds) { return m_Mission.EnumerateCompatibleMagazines(weaponItemId, itemIds); }
+	bool GetCompatibleOptics(string weaponItemId, out array<string> itemIds) { return m_Mission.EnumerateCompatibleOptics(weaponItemId, itemIds); }
 
 	bool SetZeroing(string slotId, int meters)
 	{
@@ -110,8 +113,6 @@ class RHD_LoadoutEditorController
 		if (!m_Mission.SetHolsterState(state)) return false;
 		return m_Model.SetHolsterState(state);
 	}
-
-	bool GetCatalog(string category, out array<string> itemIds) { return m_Mission.EnumerateItems(category, itemIds); }
 
 	bool ValidateActiveProfile()
 	{
@@ -128,6 +129,7 @@ class RHD_LoadoutEditorController
 			if (slot.m_sCategory == "HOLSTER") continue;
 			if (!m_Mission.IsItemAllowed(slot.m_sCategory, slot.m_sItemId)) return false;
 			if (slot.m_iQuantity < 0) return false;
+			if (slot.m_iZeroing < RHD_LoadoutEditorConfig.ZEROING_MIN_METERS || slot.m_iZeroing > RHD_LoadoutEditorConfig.ZEROING_MAX_METERS) return false;
 			foreach (string attachment : slot.m_aAttachments)
 				if (!attachment.IsEmpty() && !m_Mission.CanAttach(slot.m_sItemId, attachment)) return false;
 		}
@@ -148,7 +150,7 @@ class RHD_LoadoutEditorController
 	{
 		RHD_LoadoutProfile profile = m_Model ? m_Model.GetActiveProfile() : null;
 		if (!profile) return "NO ACTIVE PROFILE";
-		string result = "PROFILE: " + profile.m_sDisplayName + " | EQUIPPED: " + m_Model.CountEquippedItems().ToString();
+		string result = "PROFILE: " + profile.m_sDisplayName + " | EQUIPPED: " + m_Model.CountEquippedItems();
 		result += " | VALID: " + (ValidateProfile(profile) ? "YES" : "NO");
 		return result;
 	}
@@ -177,6 +179,7 @@ class RHD_LoadoutEditorController
 		if (m_Mission.HasGRSApparel()) result += " | GRS Apparel";
 		if (m_Mission.HasGRSVestsRigs()) result += " | GRS Vests/Rigs";
 		if (m_Mission.HasGRSBagsBeltsDroplegs()) result += " | GRS Bags/Belts/Droplegs";
+		if (m_Mission.HasGRSPatches()) result += " | GRS Patches";
 		if (m_Mission.HasRHS()) result += " | RHS";
 		if (m_Mission.HasRayziOptics()) result += " | Rayzi Optics";
 		if (m_Mission.HasRISLasers()) result += " | RIS Lasers";
