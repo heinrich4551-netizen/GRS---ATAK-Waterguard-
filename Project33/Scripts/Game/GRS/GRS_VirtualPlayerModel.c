@@ -41,6 +41,7 @@ class GRS_JobEntry
 	string m_sDestinationCivilian;
 	string m_sVirtualItemId;
 	int m_iReward;
+	int m_iStage;
 	bool m_bActive;
 };
 
@@ -52,9 +53,24 @@ class GRS_VirtualPlayerState
 	ref array<GRS_PropertyEntry> m_aProperties = {};
 	ref array<GRS_JobEntry> m_aJobs = {};
 
+	int GetBaseInventorySlotsUsed()
+	{
+		return m_aBaseInventory.Count();
+	}
+
 	bool AddBaseItem(string itemId, string displayName, int quantity)
 	{
-		if (quantity <= 0 || m_aBaseInventory.Count() >= GRS_VirtualPlayerConfig.MAX_BASE_INVENTORY_ITEMS)
+		if (itemId.IsEmpty() || quantity <= 0)
+			return false;
+		foreach (GRS_VirtualInventoryEntry existing : m_aBaseInventory)
+		{
+			if (existing && existing.m_sItemId == itemId && !existing.m_bVirtual)
+			{
+				existing.m_iQuantity += quantity;
+				return true;
+			}
+		}
+		if (GetBaseInventorySlotsUsed() >= GRS_VirtualPlayerConfig.MAX_BASE_INVENTORY_SLOTS)
 			return false;
 		GRS_VirtualInventoryEntry entry = new GRS_VirtualInventoryEntry();
 		entry.m_sItemId = itemId;
@@ -67,7 +83,17 @@ class GRS_VirtualPlayerState
 
 	bool AddVirtualItem(string itemId, string displayName, int quantity)
 	{
-		if (quantity <= 0 || m_aVirtualInventory.Count() >= GRS_VirtualPlayerConfig.MAX_VIRTUAL_ITEMS)
+		if (itemId.IsEmpty() || quantity <= 0)
+			return false;
+		foreach (GRS_VirtualInventoryEntry existing : m_aVirtualInventory)
+		{
+			if (existing && existing.m_sItemId == itemId && existing.m_bVirtual)
+			{
+				existing.m_iQuantity += quantity;
+				return true;
+			}
+		}
+		if (m_aVirtualInventory.Count() >= GRS_VirtualPlayerConfig.MAX_VIRTUAL_ITEM_TYPES)
 			return false;
 		GRS_VirtualInventoryEntry entry = new GRS_VirtualInventoryEntry();
 		entry.m_sItemId = itemId;
@@ -80,7 +106,7 @@ class GRS_VirtualPlayerState
 
 	bool AddGarageVehicle(string vehicleId, string displayName)
 	{
-		if (m_aGarage.Count() >= GRS_VirtualPlayerConfig.MAX_GARAGE_VEHICLES)
+		if (vehicleId.IsEmpty())
 			return false;
 		GRS_GarageVehicleEntry entry = new GRS_GarageVehicleEntry();
 		entry.m_sVehicleId = vehicleId;
@@ -94,11 +120,10 @@ class GRS_VirtualPlayerState
 	{
 		if (m_aProperties.Count() >= GRS_VirtualPlayerConfig.MAX_PROPERTIES)
 			return false;
-		if (radiusMeters <= 0 || radiusMeters > GRS_VirtualPlayerConfig.MAX_BUILD_RADIUS_M)
+		if (propertyId.IsEmpty() || radiusMeters <= 0 || radiusMeters > GRS_VirtualPlayerConfig.MAX_BUILD_RADIUS_M)
 			return false;
 		if (price < GRS_VirtualPlayerConfig.MIN_PROPERTY_PRICE || price > GRS_VirtualPlayerConfig.MAX_PROPERTY_PRICE)
 			return false;
-
 		GRS_PropertyEntry property = new GRS_PropertyEntry();
 		property.m_sPropertyId = propertyId;
 		property.m_sDisplayName = displayName;
@@ -113,12 +138,11 @@ class GRS_VirtualPlayerState
 
 	bool AddStorageObject(int propertyIndex, string storageId)
 	{
-		if (propertyIndex < 0 || propertyIndex >= m_aProperties.Count())
+		if (propertyIndex < 0 || propertyIndex >= m_aProperties.Count() || storageId.IsEmpty())
 			return false;
 		GRS_PropertyEntry property = m_aProperties[propertyIndex];
-		if (property.m_iStorageCapacity + GRS_VirtualPlayerConfig.STORAGE_PER_OBJECT > GRS_VirtualPlayerConfig.MAX_PROPERTY_STORAGE)
+		if (!property || property.m_iStorageCapacity + GRS_VirtualPlayerConfig.STORAGE_PER_OBJECT > GRS_VirtualPlayerConfig.MAX_PROPERTY_STORAGE)
 			return false;
-
 		GRS_PropertyStorageEntry storage = new GRS_PropertyStorageEntry();
 		storage.m_sStorageId = storageId;
 		storage.m_iCapacity = GRS_VirtualPlayerConfig.STORAGE_PER_OBJECT;
@@ -126,4 +150,12 @@ class GRS_VirtualPlayerState
 		property.m_iStorageCapacity += storage.m_iCapacity;
 		return true;
 	}
+};
+
+enum GRS_JobStage
+{
+	TALK_TO_SOURCE,
+	TALK_TO_CONTACT,
+	DELIVER_ITEM,
+	COMPLETE
 };
