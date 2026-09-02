@@ -1,55 +1,91 @@
-# GRS ATAK F6 Menu
+# GRS ATAK / Waterguard F6 Menu
 
-This branch adds the script-side foundation for an F6 ATAK menu.
+## Reforger-safe implementation status
 
-## Current features
+The branch now contains the Enforce Script side of the feature plus the custom menu preset and menu class. The repository still does **not** contain mission-specific gameplay resources, an existing custom `chimeraMenus.conf`, inventory integration, AI squad integration, mortar support implementation, or supply-crate/smoke prefabs. Those cannot be safely fabricated: Reforger resource references are project assets and engine APIs must match the mission's actual components.
 
-- F6 action listener named `GRS_ATAK_Menu`.
-- Menu tabs: Shop, Casino, Map, Stats, Handler.
-- Session economy state.
-- $125 per enemy kill.
-- $4,500 per enemy revive.
-- $145 per base supply action.
-- $1,786 precise mortar request charge.
-- Shop price table and admin-only setter entry point.
-- Casino payout helpers for blackjack, roulette, scratch cards and a daily-lotto cooldown state.
-- Private map state model for pins, labels and layers.
-- Handler request model for AI recruitment/loadout and support requests.
+The scripts therefore use narrow integration hooks and keep the parts that can be implemented generically inside normal Reforger scripting limits.
 
-## Important integration work
+## Menu
 
-The repository currently contains only the `Project33` game-project metadata and no existing gameplay/UI scripts to safely bind these systems to mission-specific inventory, AI, mortar, supply-crate or revive/base events. The new files therefore expose narrow integration hooks instead of inventing prefab/resource IDs or engine APIs.
+Files:
 
-### F6 binding
+- `Scripts/Game/GRS/GRS_ATAKMenuPreset.c` registers `GRS_ATAK_Menu` with `ChimeraMenuPreset`.
+- `Scripts/Game/GRS/GRS_ATAKMenuUI.c` is the `ChimeraMenuBase` UI controller.
+- `Scripts/Game/GRS/GRS_ATAKMenuController.c` handles the F6 action and feature/service state.
+- `Scripts/Game/GRS/GRS_ATAKMenuModel.c` contains the tab/action names.
 
-Create/bind the input action `GRS_ATAK_Menu` to keyboard F6 in the Workbench Input Configuration. The controller registers this action with `InputManager.AddActionListener`, which is the same listener pattern used by Reforger UI code.
+### Workbench-only resource setup
 
-### Server authority
+Two editor resources are intentionally not generated as hand-written fake files:
 
-Money, purchases, rewards, AI spawning, mortar calls and supply drops should be executed on the server. The menu must send requests to the server and only the server should call the economy mutators. Do not trust a client-provided reward, price, inventory item or target.
+1. Create `UI/Layouts/GRS/GRS_ATAK_Menu.layout` in Resource Manager. Give the root/child widgets the names expected by `GRS_ATAKMenuUI.c`, at minimum:
+   - `GRS_ATK_Close`
+   - `GRS_ATK_Money`
+   - `GRS_ATK_Content`
+2. Override the base game's `Configs/System/chimeraMenus.conf` in the mod and add an entry named exactly `GRS_ATAK_Menu` pointing to the new layout and class `GRS_ATAKMenuUI`.
 
-### Shop
+Reforger's documented custom-menu workflow is to add a `modded enum ChimeraMenuPreset : ScriptMenuPresetEnum` entry and then add the matching object-name entry to the mod's `chimeraMenus.conf`. The enum and script are present here; the project-specific layout/config resource must be authored by Workbench so it receives valid resource metadata.
 
-`AdminSetShopItem(itemId, price)` is the admin-side entry point. A production integration should validate the caller's admin permission, persist the shop table for the session/server, validate the item resource, debit the buyer server-side, and then spawn/insert the purchased item into the player's inventory.
+### F6 action
 
-### Casino
+Create/bind the input action `GRS_ATAK_Menu` to keyboard F6 in the mission/mod input configuration. The script registers the action with `InputManager.AddActionListener` using the same listener pattern used by Reforger UI code.
 
-The supplied helpers are deterministic payout calculators. The server must generate the actual random outcomes, debit the stake before resolving the game, and credit only server-calculated winnings. `MarkDailyLottoClaimed` should be set only after a successful daily-lotto transaction.
+## Economy
 
-### Map
+Requested rewards/costs are centralized in `GRS_ATAKConfig.c`:
 
-`GRS_ATAKMapState` is deliberately per-player. Do not replicate its edits to other clients if the map is intended to be private. The final UI should render the player's local state over the map widget.
+- Enemy kill: **$125**
+- Enemy revive: **$4,500**
+- Base supply: **$145**
+- Precise mortar request: **$1,786**
+- Supply drop: **$1,000**
+- Blackjack minimum: **$500**
+- Roulette minimum: **$250**
+- Scratch card: **$250**
+- Daily lotto: **$100**
 
-### Handler
+`GRS_ATAKPlayerState` owns money and current-session counters. Spending supports rollback if an integration operation fails.
 
-Use `GRS_ATAKHandlerRequest` to carry AI name/prefab/loadout and support targets. Recruitment must validate available squad slots and the selected loadout. Mortar requests must validate a legal target/weapon solution before charging or, preferably, reserve/debit the cost transactionally. Supply drops should spawn the requested marker and crate server-side and populate the crate from a server-side random enemy-equipment table.
+## Server authority requirement
 
-### Rewards
+All shared/economic operations must ultimately run on the authoritative server. Do not let a client submit a payout, reward amount, shop price, inventory resource, or casino outcome.
 
-Hook the existing mission's authoritative enemy-death, revive and base-supply events to:
+The current controller exposes the game rules and integration hooks, but the repository has no player/economy network component to attach to the mission's player entities. That is the remaining mission integration step; adding guessed RPC/component wiring would be less safe than leaving the explicit seam.
+
+## Shop
+
+`AdminSetShopItem(itemId, price, callerIsAdmin)` requires a server-side permission result. The real integration must additionally validate the item resource, debit the buyer on the server, insert/spawn the item through the mission's inventory API, and roll back the debit if insertion fails.
+
+## Casino
+
+Blackjack, roulette and scratch cards now generate their outcomes inside the service rather than accepting an outcome from a client. Daily lotto accepts a server-provided day key so the mission can use its authoritative date/session system. The server should own the ticket/result transaction.
+
+## Map
+
+`GRS_ATAKMapState` is client-local by design. Pins, labels and layers are not replicated. The layout/UI should draw these values over the player's map. This satisfies the requirement that only the user sees their edits.
+
+## Handler
+
+`GRS_ATAKHandlerRequest` carries the selected AI prefab/name/loadout and support target. The controller caps recruited AI at four by default. The real mission integration must validate squad capacity and loadout resources before spawning.
+
+- Mortar: validate target and available fire-support solution, then charge **$1,786** transactionally.
+- Supply drop: spawn the crate and red-smoke marker server-side, populate it from a server-owned enemy-equipment table, and charge **$1,000** transactionally.
+
+No fake prefab IDs are included.
+
+## Rewards integration
+
+Connect the authoritative mission events to:
 
 - `RecordEnemyKill()`
 - `RecordEnemyRevive()`
 - `RecordBaseSupply()`
 
-This prevents duplicate client-side reward claims.
+Pass the correct player state/controller for the player responsible for the event. Do not invoke these from client UI code.
+
+## Compatibility review
+
+The added code uses normal Enforce Script classes under `Project33/Scripts/Game/GRS`, `SCR_BaseGameMode` lifecycle hooks, `InputManager` action listeners, `ChimeraMenuBase`, `ChimeraMenuPreset`, standard containers, and `Math.RandomInt`. It does not add native code, external libraries, filesystem/network access, arbitrary executable code, or invented engine classes.
+
+The original project metadata files remain unchanged. This is intentional: `addon.gproj` already defines the game-project identity/dependencies, while the missing gameplay/UI assets must be created through Workbench rather than by guessing serialized resource data.
