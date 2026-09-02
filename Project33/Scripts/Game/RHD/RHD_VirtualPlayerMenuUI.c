@@ -31,15 +31,18 @@ class RHD_VirtualPlayerMenuUI : ChimeraMenuBase
 	void Refresh()
 	{
 		if (!m_Controller) return;
-		if (m_wMoney) m_wMoney.SetText("Virtual Player");
+		RHD_ATAKPlayerState economy = m_Controller.GetSharedEconomy();
+		if (m_wMoney) m_wMoney.SetText("MONEY: $" + (economy ? economy.GetMoney().ToString() : "0") + " | CART: $" + m_Controller.GetShopCartTotal().ToString());
 		if (m_wContent)
 		{
 			RHD_VirtualPlayerState state = m_Controller.GetState();
-			m_wContent.SetText("VIRTUAL INVENTORY: " + state.m_aBaseInventory.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_BASE_INVENTORY_SLOTS.ToString() +
+			m_wContent.SetText("INVENTORY: " + state.m_aBaseInventory.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_BASE_INVENTORY_SLOTS.ToString() +
 				"\nVIRTUAL ITEMS: " + state.m_aVirtualInventory.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_VIRTUAL_ITEM_TYPES.ToString() +
 				"\nGARAGE: " + state.m_aGarage.Count().ToString() +
 				"\nPROPERTY: " + state.m_aProperties.Count().ToString() + "/" + RHD_VirtualPlayerConfig.MAX_PROPERTIES.ToString() +
-				"\n\nUse the Workbench tab buttons to expose actions.");
+				"\nSHOP: Add To Cart | Remove From Cart | Clear Cart | CHECKOUT" +
+				"\nSELL: Select item quantity or SELL ALL for one item type" +
+				"\nPRODUCTION: Refine Ore | Process Farming Inputs");
 		}
 	}
 };
