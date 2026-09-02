@@ -1,6 +1,6 @@
 GameProject {
  ID "GRSATAKRHD"
- TITLE "GRS - ATAK | Waterguard |"
+ TITLE "RHD - ATAK | Waterguard |"
  Dependencies {
   "58D0FB3206B6F859" "65DACC64CE785B6C"
  }
