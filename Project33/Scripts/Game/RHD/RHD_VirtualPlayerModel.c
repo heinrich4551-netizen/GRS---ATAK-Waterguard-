@@ -48,6 +48,14 @@ class RHD_VirtualPlayerState
 	ref array<RHD_PropertyEntry> m_aProperties = {};
 	ref array<RHD_JobEntry> m_aJobs = {};
 	int GetBaseInventorySlotsUsed() { return m_aBaseInventory.Count(); }
+	int GetVirtualItemTypeCount() { return m_aVirtualInventory.Count(); }
+	bool HasVirtualItemType(string itemId) { return GetVirtualItemQuantity(itemId) > 0; }
+	bool CanAddVirtualItemType(string itemId)
+	{
+		if (itemId.IsEmpty()) return false;
+		if (HasVirtualItemType(itemId)) return true;
+		return GetVirtualItemTypeCount() < RHD_VirtualPlayerConfig.MAX_VIRTUAL_ITEM_TYPES;
+	}
 	int GetBaseItemQuantity(string itemId) { return GetItemQuantity(m_aBaseInventory, itemId, false); }
 	int GetVirtualItemQuantity(string itemId) { return GetItemQuantity(m_aVirtualInventory, itemId, true); }
 	protected int GetItemQuantity(array<RHD_VirtualInventoryEntry> entries, string itemId, bool virtualItem)
@@ -67,10 +75,9 @@ class RHD_VirtualPlayerState
 	bool RemoveBaseItem(string itemId, int quantity) { return RemoveItem(m_aBaseInventory, itemId, quantity, false); }
 	bool AddVirtualItem(string itemId, string displayName, int quantity)
 	{
-		if (itemId.IsEmpty() || quantity <= 0) return false;
+		if (itemId.IsEmpty() || quantity <= 0 || !CanAddVirtualItemType(itemId)) return false;
 		foreach (RHD_VirtualInventoryEntry existing : m_aVirtualInventory)
 			if (existing && existing.m_sItemId == itemId && existing.m_bVirtual) { existing.m_iQuantity += quantity; return true; }
-		if (m_aVirtualInventory.Count() >= RHD_VirtualPlayerConfig.MAX_VIRTUAL_ITEM_TYPES) return false;
 		RHD_VirtualInventoryEntry entry = new RHD_VirtualInventoryEntry(); entry.m_sItemId = itemId; entry.m_sDisplayName = displayName; entry.m_iQuantity = quantity; entry.m_bVirtual = true; m_aVirtualInventory.Insert(entry); return true;
 	}
 	bool RemoveVirtualItem(string itemId, int quantity) { return RemoveItem(m_aVirtualInventory, itemId, quantity, true); }
